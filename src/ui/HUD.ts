@@ -31,7 +31,9 @@ export class HUD {
       this.bus.on('collectible:changed', ({ collected, total }) => (collectiblesEl.textContent = `${collected}/${total}`)),
       this.bus.on('timer:tick', ({ seconds }) => (timerEl.textContent = String(Math.floor(seconds)))),
     );
-    pauseButton.addEventListener('click', () => this.bus.emit('game:pause', {}));
+    const pauseHandler = () => this.bus.emit('game:pause', {});
+    pauseButton.addEventListener('click', pauseHandler);
+    this.unsubscribers.push(() => pauseButton.removeEventListener('click', pauseHandler));
   }
 
   destroy(): void {
