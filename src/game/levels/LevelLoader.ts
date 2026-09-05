@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type { LevelData } from './types';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
+import { Hazard } from '../entities/Hazard';
+import { Checkpoint } from '../entities/Checkpoint';
 
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
@@ -13,6 +15,8 @@ export interface LevelBuildResult {
   player: Player;
   staticGroup: Phaser.Physics.Arcade.StaticGroup;
   movingPlatforms: MovingPlatform[];
+  hazards: Hazard[];
+  checkpoints: Checkpoint[];
   level: LevelData;
 }
 
@@ -44,10 +48,13 @@ export class LevelLoader {
       (def) => new MovingPlatform(scene, def.x, def.y, def.width, def.rangePx, def.speedPxPerSec),
     );
 
+    const hazards = level.hazards.map((def) => new Hazard(scene, def));
+    const checkpoints = level.checkpoints.map((def) => new Checkpoint(scene, def));
+
     const player = new Player(scene, level.playerStart.x, level.playerStart.y);
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, level };
+    return { player, staticGroup, movingPlatforms, hazards, checkpoints, level };
   }
 }
