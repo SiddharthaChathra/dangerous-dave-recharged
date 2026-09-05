@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { PHYSICS, JUMP_VELOCITY } from '../core/constants';
 import { integrateHorizontal, applyGravity, updateJumpAssist, type MoveInput, type JumpAssistState } from '../../utils/physics';
+import { PlayerAnimator, type PlayerAnimState } from './PlayerAnimator';
 
 export class Player {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
   private jumpAssist: JumpAssistState = { coyoteRemainingMs: 0, bufferRemainingMs: 0 };
+  private readonly animator: PlayerAnimator;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.physics.add.sprite(x, y, '__WHITE');
@@ -17,6 +19,7 @@ export class Player {
     // setDisplaySize(24,32) on the 4x4 '__WHITE' texture already set scale to (6,8), the
     // desired final body size must be pre-divided by that scale or it balloons to 120x240.
     (this.sprite.body as Phaser.Physics.Arcade.Body).setSize(20 / this.sprite.scaleX, 30 / this.sprite.scaleY);
+    this.animator = new PlayerAnimator(scene, this.sprite);
   }
 
   get isOnGround(): boolean {
@@ -39,7 +42,24 @@ export class Player {
     if (input.right) this.sprite.setFlipX(false);
     else if (input.left) this.sprite.setFlipX(true);
 
+    const onGround = this.isOnGround;
+    const currentVelocity = body.velocity;
+    let animState: PlayerAnimState;
+    if (currentVelocity.y < -20) animState = 'jump';
+    else if (currentVelocity.y > 20 && !onGround) animState = 'fall';
+    else if (onGround && Math.abs(currentVelocity.x) > 10) animState = 'run';
+    else animState = 'idle';
+    this.animator.update(dtMs, animState);
+
     return { jumped: shouldJump };
+  }
+
+  playHurt(): void {
+    this.animator.update(0, 'hurt');
+  }
+
+  playDeath(): void {
+    this.animator.update(0, 'death');
   }
 
   setPosition(x: number, y: number): void {

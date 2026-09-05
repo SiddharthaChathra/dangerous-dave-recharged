@@ -15,6 +15,8 @@ import { Collectible } from '../entities/Collectible';
 import { InputController } from '../systems/InputController';
 import { gameEvents } from '../core/EventBus';
 import { audioSystem } from '../core/audio';
+import { ParticleFX } from '../systems/ParticleFX';
+import { loadSave } from '../systems/SaveSystem';
 import { createLivesState, applyDamage, setCheckpoint, type LivesState } from '../../utils/livesReducer';
 import { createScoreState, collectGem, collectSecret, type ScoreState } from '../../utils/scoring';
 import type { MoveInput } from '../../utils/physics';
@@ -31,12 +33,15 @@ export class PlayScene extends Phaser.Scene {
   private collectibles: Collectible[] = [];
   private goalZone!: Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
   private cameraController!: CameraController;
+  private fx!: ParticleFX;
   private livesState!: LivesState;
   private scoreState!: ScoreState;
   private lastDamageTime = 0;
   private invulnerabilityWindowMs = 1000;
   private elapsedSeconds = 0;
   private timerAccumulator = 0;
+  private dustAccumulator = 0;
+  private wasOnGround = false;
   private levelCompleted = false;
 
   constructor() {
@@ -88,6 +93,11 @@ export class PlayScene extends Phaser.Scene {
       height: this.level.heightPx,
     });
 
+    // Particle VFX system, gated by the current reduced-motion setting
+    this.fx = new ParticleFX(this);
+    this.fx.setReducedMotion(loadSave(window.localStorage).settings.reducedMotion);
+    this.wasOnGround = this.player.isOnGround;
+
     // Set up falling platform colliders to trigger on player contact
     for (const fallingPlatform of this.fallingPlatforms) {
       this.physics.add.collider(this.player.sprite, fallingPlatform.sprite, () => {
@@ -121,6 +131,7 @@ export class PlayScene extends Phaser.Scene {
           this.livesState = setCheckpoint(this.livesState, checkpoint.id);
           gameEvents.emit('checkpoint:reached', { id: checkpoint.id });
           audioSystem.playSfx('checkpoint');
+          this.fx.checkpointPulse(checkpoint.sprite.x, checkpoint.sprite.y);
         }
       });
     }
@@ -137,6 +148,7 @@ export class PlayScene extends Phaser.Scene {
           gameEvents.emit('score:changed', { score: this.scoreState.score });
           gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
           audioSystem.playSfx('collect');
+          this.fx.sparkle(collectible.sprite.x, collectible.sprite.y);
         }
       });
     }
@@ -172,7 +184,10 @@ export class PlayScene extends Phaser.Scene {
       jumpHeld: state.jumpHeld,
     };
     const { jumped } = this.player.update(delta, input);
-    if (jumped) audioSystem.playSfx('jump');
+    if (jumped) {
+      audioSystem.playSfx('jump');
+      this.fx.jumpBurst(this.player.sprite.x, this.player.sprite.y);
+    }
     for (const mp of this.movingPlatforms) {
       mp.update(delta);
     }
@@ -186,8 +201,29 @@ export class PlayScene extends Phaser.Scene {
         this.player.sprite.x,
         this.player.sprite.y,
       );
+      const wasAlive = enemy.context.state !== 'dead';
       enemy.tick(delta, distanceToPlayer);
+      if (wasAlive && enemy.context.state === 'dead') {
+        this.fx.enemyDefeat(enemy.sprite.x, enemy.sprite.y);
+      }
     }
+
+    // Ground-transition and run-dust particle effects
+    const onGround = this.player.isOnGround;
+    const horizontalSpeed = Math.abs((this.player.sprite.body as Phaser.Physics.Arcade.Body).velocity.x);
+    if (!this.wasOnGround && onGround) {
+      this.fx.landingDust(this.player.sprite.x, this.player.sprite.y + 16);
+    }
+    if (onGround && horizontalSpeed > 10) {
+      this.dustAccumulator += delta;
+      if (this.dustAccumulator >= 150) {
+        this.dustAccumulator -= 150;
+        this.fx.dustAt(this.player.sprite.x, this.player.sprite.y + 16);
+      }
+    } else {
+      this.dustAccumulator = 0;
+    }
+    this.wasOnGround = onGround;
 
     // Accumulate time and emit timer/progress events once per second
     this.timerAccumulator += delta;
@@ -211,6 +247,7 @@ export class PlayScene extends Phaser.Scene {
       total: this.scoreState.total,
     });
     audioSystem.playSfx('levelComplete');
+    this.fx.levelCompleteBurst(this.player.sprite.x, this.player.sprite.y);
   }
 
   private handleDamageSource(): void {
@@ -221,6 +258,7 @@ export class PlayScene extends Phaser.Scene {
       gameEvents.emit('lives:changed', { lives: this.livesState.lives });
       this.cameraController.shake();
       gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
+      this.player.playHurt();
       audioSystem.playSfx('damage');
 
       // Respawn at last checkpoint or level start
@@ -235,6 +273,7 @@ export class PlayScene extends Phaser.Scene {
 
       // Check if game is over
       if (this.livesState.isGameOver) {
+        this.player.playDeath();
         gameEvents.emit('game:over', { finalScore: this.scoreState.score, bestScore: 0 });
       }
     }
