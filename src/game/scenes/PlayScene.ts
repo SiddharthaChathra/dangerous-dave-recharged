@@ -1,15 +1,16 @@
 import Phaser from 'phaser';
+import { CameraController } from '../systems/CameraController';
+import { LevelLoader } from '../levels/LevelLoader';
+import { level001 } from '../levels/level001';
+import { buildParallaxLayers } from '../levels/parallax';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
-import { CameraController } from '../systems/CameraController';
 import type { MoveInput } from '../../utils/physics';
 
 export class PlayScene extends Phaser.Scene {
   private player!: Player;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private ground!: Phaser.Physics.Arcade.StaticGroup;
-  private movingPlatform!: MovingPlatform;
-  private movingPlatformGroup!: Phaser.Physics.Arcade.Group;
+  private movingPlatforms: MovingPlatform[] = [];
   private cameraController!: CameraController;
 
   constructor() {
@@ -18,21 +19,23 @@ export class PlayScene extends Phaser.Scene {
 
   create(): void {
     this.physics.world.gravity.y = 0; // gravity is applied manually in Player.update
-    this.ground = this.physics.add.staticGroup();
-    const groundRect = this.add.rectangle(960, 520, 1920, 40, 0x333344);
-    this.physics.add.existing(groundRect, true);
-    this.ground.add(groundRect);
 
-    this.movingPlatformGroup = this.physics.add.group();
-    this.movingPlatform = new MovingPlatform(this, 300, 350, 80, 100, 100);
-    this.movingPlatformGroup.add(this.movingPlatform.sprite);
+    // Build parallax background layers first so they render behind everything
+    buildParallaxLayers(this, level001.backgroundPalette, level001.widthPx, level001.heightPx);
 
-    this.player = new Player(this, 100, 400);
-    this.physics.add.collider(this.player.sprite, this.ground);
-    this.physics.add.collider(this.player.sprite, this.movingPlatformGroup);
+    // Load and build the level, creating platforms, player, and moving platforms
+    const levelBuild = LevelLoader.buildInScene(this, level001);
+    this.player = levelBuild.player;
+    this.movingPlatforms = levelBuild.movingPlatforms;
 
+    // Attach camera controller with bounds matching level dimensions
     this.cameraController = new CameraController();
-    this.cameraController.attach(this.cameras.main, this.player.sprite, { x: 0, y: 0, width: 1920, height: 540 });
+    this.cameraController.attach(this.cameras.main, this.player.sprite, {
+      x: 0,
+      y: 0,
+      width: level001.widthPx,
+      height: level001.heightPx,
+    });
 
     this.cursors = this.input.keyboard!.createCursorKeys();
   }
@@ -45,7 +48,9 @@ export class PlayScene extends Phaser.Scene {
       jumpHeld: this.cursors.up.isDown,
     };
     this.player.update(delta, input);
-    this.movingPlatform.update(delta);
+    for (const mp of this.movingPlatforms) {
+      mp.update(delta);
+    }
   }
 }
 
