@@ -12,22 +12,36 @@ export class SettingsPanel {
     container.className = 'screen screen--overlay';
     container.innerHTML = `
       <div class="screen__panel">
-        <h2>Settings</h2>
-        <label>Music
-          <input type="range" min="0" max="1" step="0.05" data-settings="music" value="${this.initial.musicVolume}" />
-        </label>
-        <label>SFX
-          <input type="range" min="0" max="1" step="0.05" data-settings="sfx" value="${this.initial.sfxVolume}" />
-        </label>
-        <label><input type="checkbox" data-settings="muted" ${this.initial.muted ? 'checked' : ''}/> Mute</label>
-        <label><input type="checkbox" data-settings="reducedMotion" ${this.initial.reducedMotion ? 'checked' : ''}/> Reduced motion</label>
-        <label>Theme
-          <select data-settings="theme">
-            <option value="dark" ${this.initial.theme === 'dark' ? 'selected' : ''}>Dark</option>
-            <option value="light" ${this.initial.theme === 'light' ? 'selected' : ''}>Light</option>
-          </select>
-        </label>
-        <button data-settings="close">Close</button>
+        <h2>⚙ Settings</h2>
+        <div class="settings-group">
+          <div class="settings-row">
+            <label for="settings-music">🎵 Music</label>
+            <input type="range" id="settings-music" min="0" max="1" step="0.05" data-settings="music" value="${this.initial.musicVolume}" />
+          </div>
+          <div class="settings-row">
+            <label for="settings-sfx">🔊 SFX</label>
+            <input type="range" id="settings-sfx" min="0" max="1" step="0.05" data-settings="sfx" value="${this.initial.sfxVolume}" />
+          </div>
+          <div class="divider"></div>
+          <div class="settings-row">
+            <label for="settings-muted">🔇 Mute All</label>
+            <input type="checkbox" id="settings-muted" data-settings="muted" ${this.initial.muted ? 'checked' : ''}/>
+          </div>
+          <div class="settings-row">
+            <label for="settings-motion">♿ Reduced Motion</label>
+            <input type="checkbox" id="settings-motion" data-settings="reducedMotion" ${this.initial.reducedMotion ? 'checked' : ''}/>
+          </div>
+          <div class="divider"></div>
+          <div class="settings-row">
+            <label for="settings-theme">🎨 Theme</label>
+            <select id="settings-theme" data-settings="theme">
+              <option value="dark" ${this.initial.theme === 'dark' ? 'selected' : ''}>Dark</option>
+              <option value="light" ${this.initial.theme === 'light' ? 'selected' : ''}>Light</option>
+            </select>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <button data-settings="close">✓ Done</button>
       </div>
     `;
     root.appendChild(container);

@@ -1,26 +1,43 @@
-# Asset Sourcing & Licensing
+# Asset Credits — Dangerous Dave: Recharged
 
-All assets in this project are original, created specifically for
-Dangerous Dave: Recharged. No assets, source code, levels, or branding
-from the original 1988 "Dangerous Dave" are used anywhere in this project.
+## Visual Assets
 
-## Visuals
+All visual assets in this game are **procedurally generated at runtime** using the HTML5 Canvas API.
+No external image files, sprite sheets, or ripped assets are used.
 
-Sprites (player, enemies, tiles, collectibles) are simple original
-shapes/tints rendered via Phaser primitives and the built-in white-pixel
-texture, authored directly in code (see `src/game/entities/`). No external
-image files are downloaded or bundled.
+- **Player sprites**: Generated in `PreloadScene.ts` — pixel-art character drawn programmatically
+- **Enemy sprites**: Generated in `PreloadScene.ts` — 3 distinct enemy types with unique colors
+- **Collectibles**: Diamond-shaped gems and secret gems, drawn via Canvas path operations
+- **Platforms**: Tiled ground with brick pattern, moving platforms with rivets, falling platforms with warning stripes
+- **Hazards**: Triangular spike formations
+- **Checkpoints**: Flag on pole with inactive/active states
+- **Goal door**: Arched doorway with warm inner glow
+- **Backgrounds**: Parallax layers using Phaser rectangles with procedural environmental decorations
 
-## Audio
+## Audio Assets
 
-All sound effects and music are generated at runtime using the Web Audio
-API (oscillator-based synthesis) in `src/game/systems/AudioSystem.ts`. No
-sampled/recorded audio files are used, so there is nothing to license.
+All audio is **synthesized at runtime** using the Web Audio API (OscillatorNode + GainNode).
+No audio sample files (`.mp3`, `.wav`, `.ogg`) are used or loaded.
+
+- Jump, collect, damage, enemy defeat, checkpoint, level complete, and UI click sounds
+- Background ambient music via procedural arpeggio synthesis
 
 ## Fonts
 
-System font stack only (`system-ui, sans-serif`) — no bundled font files.
+- **Orbitron** — Google Fonts, OFL (Open Font License)
+- **Inter** — Google Fonts, OFL (Open Font License)
 
-## License
+Both fonts are loaded from Google Fonts CDN and are licensed under the
+[SIL Open Font License](https://scripts.sil.org/OFL).
 
-Project code is original work. See `README.md` for the project license.
+## License Summary
+
+| Asset Category | Source | License |
+|---------------|--------|---------|
+| All sprites | Procedurally generated (Canvas API) | MIT (part of this project) |
+| All audio | Procedurally generated (Web Audio API) | MIT (part of this project) |
+| Orbitron font | Google Fonts | SIL OFL |
+| Inter font | Google Fonts | SIL OFL |
+| Level designs | Original | MIT (part of this project) |
+
+No copyrighted, proprietary, or externally-sourced game assets are included in this project.

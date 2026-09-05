@@ -2,17 +2,21 @@ import type { LevelData } from './types';
 import { level001 } from './level001';
 import { level002 } from './level002';
 import { level003 } from './level003';
+import { level004 } from './level004';
+import { level005 } from './level005';
 
 /**
  * Single source of truth for available levels, keyed by level id.
- * Tasks 14-15 add level002/level003 here — both main.ts and PlayScene
- * import this map so the level list never drifts between the two.
  */
 export const LEVELS: Record<string, LevelData> = {
   level001,
   level002,
   level003,
+  level004,
+  level005,
 };
+
+export const LEVEL_ORDER: string[] = ['level001', 'level002', 'level003', 'level004', 'level005'];
 
 export const DEFAULT_LEVEL_ID = 'level001';
 
@@ -24,12 +28,13 @@ export function getLevel(levelId: string | undefined): LevelData {
 
 /**
  * The level to advance to after completing the given level, or null if it was the last one.
- * Hardcoded per-level progression table; Task 14 will make 'level002' resolve to real content.
  */
 const NEXT_LEVEL_ID: Record<string, string | null> = {
   level001: 'level002',
   level002: 'level003',
-  level003: null,
+  level003: 'level004',
+  level004: 'level005',
+  level005: null,
 };
 
 export function getNextLevelId(levelId: string): string | null {

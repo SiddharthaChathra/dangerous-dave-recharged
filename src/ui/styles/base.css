@@ -1,5 +1,47 @@
-html, body { margin: 0; height: 100%; background: var(--ddr-bg); color: var(--ddr-text); }
-#app { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-#game-root { position: relative; }
-#ui-root { position: absolute; inset: 0; pointer-events: none; }
-#ui-root > * { pointer-events: auto; }
+/* ================================================================== */
+/*  BASE LAYOUT                                                       */
+/* ================================================================== */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  background: var(--ddr-bg);
+  color: var(--ddr-text);
+  font-family: var(--ddr-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-root {
+  position: relative;
+  border-radius: var(--ddr-radius-md);
+  overflow: hidden;
+  box-shadow: 0 0 80px rgba(74, 222, 128, 0.06), 0 4px 40px rgba(0, 0, 0, 0.4);
+}
+
+#ui-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+
+#ui-root > * {
+  pointer-events: auto;
+}
+
+/* ---- Scrollbar (minimal) ---- */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--ddr-border); border-radius: 3px; }

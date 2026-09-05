@@ -1,26 +1,77 @@
+/* ================================================================== */
+/*  HUD — Heads-Up Display                                            */
+/* ================================================================== */
+
 .hud {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   display: flex;
-  gap: 1.25rem;
+  gap: 1.5rem;
   align-items: center;
-  padding: 0.6rem 1rem;
-  font: 600 0.95rem/1.2 system-ui, sans-serif;
+  padding: 0.5rem 1rem;
+  font-family: var(--ddr-font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--ddr-hud-text);
   background: var(--ddr-hud-bg);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--ddr-border);
+  pointer-events: none;
+  z-index: 20;
+  transition: opacity var(--ddr-transition);
+}
+
+.hud--hidden {
+  opacity: 0;
+  pointer-events: none !important;
+}
+
+.hud__item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   pointer-events: none;
 }
-.hud__item { pointer-events: none; }
+
+.hud__item::before {
+  font-size: 0.9rem;
+}
+
+.hud__item[data-type="score"]::before { content: '⭐'; }
+.hud__item[data-type="lives"]::before { content: '❤️'; }
+.hud__item[data-type="gems"]::before { content: '💎'; }
+.hud__item[data-type="timer"]::before { content: '⏱️'; }
+
+.hud__item span {
+  color: var(--ddr-accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .hud__pause {
   margin-left: auto;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   background: var(--ddr-surface);
   color: var(--ddr-hud-text);
   border: 1px solid var(--ddr-border);
-  border-radius: 0.5rem;
-  padding: 0.35rem 0.7rem;
+  border-radius: var(--ddr-radius-sm);
   cursor: pointer;
+  font-size: 0.85rem;
+  transition: all var(--ddr-transition);
+}
+
+.hud__pause:hover {
+  background: var(--ddr-accent);
+  color: var(--ddr-accent-text);
+  border-color: var(--ddr-accent);
+  box-shadow: var(--ddr-glow);
 }

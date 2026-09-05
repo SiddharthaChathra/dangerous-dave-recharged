@@ -26,6 +26,8 @@ export const DEFAULT_SAVE: SaveData = {
     level001: { bestScore: 0, bestTimeSeconds: null, unlocked: true },
     level002: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
     level003: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level004: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level005: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
   },
   settings: {
     musicVolume: 0.6,

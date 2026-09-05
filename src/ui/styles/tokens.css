@@ -1,36 +1,72 @@
-:focus-visible {
-  outline: 2px solid var(--ddr-focus);
-  outline-offset: 2px;
-}
+/* ================================================================== */
+/*  DESIGN TOKENS — Dangerous Dave: Recharged                         */
+/* ================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --ddr-bg: #0b0b12;
-  --ddr-surface: #16161f;
-  --ddr-text: #f4f4f6;
-  --ddr-hud-text: #f4f4f6;
-  --ddr-hud-bg: rgb(10 10 16 / 0.55);
-  --ddr-border: #2c2c3a;
+  /* ---- Colors ---- */
+  --ddr-bg: #0a0a10;
+  --ddr-surface: rgba(18, 18, 28, 0.92);
+  --ddr-surface-solid: #12121c;
+  --ddr-text: #e4e4ec;
+  --ddr-text-muted: #8b8b9e;
+  --ddr-hud-text: #e4e4ec;
+  --ddr-hud-bg: rgba(8, 8, 14, 0.65);
+  --ddr-border: rgba(60, 60, 90, 0.5);
   --ddr-accent: #4ade80;
-  --ddr-accent-text: #0b0b12;
+  --ddr-accent-hover: #22c55e;
+  --ddr-accent-text: #0a0a10;
+  --ddr-danger: #ef4444;
+  --ddr-gold: #facc15;
   --ddr-focus: #60a5fa;
-  --ddr-overlay-bg: rgb(5 5 10 / 0.72);
+  --ddr-overlay-bg: rgba(4, 4, 8, 0.82);
+  --ddr-glow: 0 0 20px rgba(74, 222, 128, 0.25);
+  --ddr-shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.5), 0 10px 25px rgba(0, 0, 0, 0.3);
+
+  /* ---- Typography ---- */
+  --ddr-font-display: 'Orbitron', system-ui, sans-serif;
+  --ddr-font-body: 'Inter', system-ui, sans-serif;
+
+  /* ---- Spacing / Radius ---- */
+  --ddr-radius-sm: 0.5rem;
+  --ddr-radius-md: 0.875rem;
+  --ddr-radius-lg: 1.25rem;
+
+  /* ---- Transitions ---- */
+  --ddr-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ---- Light Theme ---- */
 :root[data-theme='light'] {
-  --ddr-bg: #f4f4f8;
-  --ddr-surface: #ffffff;
-  --ddr-text: #17171f;
-  --ddr-hud-text: #17171f;
-  --ddr-hud-bg: rgb(255 255 255 / 0.7);
-  --ddr-border: #d8d8e2;
-  --ddr-accent: #15803d;
+  --ddr-bg: #f0f0f6;
+  --ddr-surface: rgba(255, 255, 255, 0.94);
+  --ddr-surface-solid: #ffffff;
+  --ddr-text: #1a1a24;
+  --ddr-text-muted: #6b6b80;
+  --ddr-hud-text: #1a1a24;
+  --ddr-hud-bg: rgba(255, 255, 255, 0.78);
+  --ddr-border: rgba(180, 180, 210, 0.5);
+  --ddr-accent: #16a34a;
+  --ddr-accent-hover: #15803d;
   --ddr-accent-text: #ffffff;
-  --ddr-focus: #1d4ed8;
-  --ddr-overlay-bg: rgb(255 255 255 / 0.75);
+  --ddr-focus: #2563eb;
+  --ddr-overlay-bg: rgba(240, 240, 246, 0.88);
+  --ddr-glow: 0 0 20px rgba(22, 163, 74, 0.2);
+  --ddr-shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.12), 0 10px 25px rgba(0, 0, 0, 0.08);
 }
 
-:root[data-reduced-motion='true'] * {
+/* ---- Accessibility ---- */
+:root[data-reduced-motion='true'] *,
+:root[data-reduced-motion='true'] *::before,
+:root[data-reduced-motion='true'] *::after {
   animation-duration: 0.001ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ddr-focus);
+  outline-offset: 3px;
+  border-radius: var(--ddr-radius-sm);
 }
