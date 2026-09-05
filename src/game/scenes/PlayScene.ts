@@ -42,6 +42,8 @@ export class PlayScene extends Phaser.Scene {
   init(data: { levelId: string }): void {
     this.level = getLevel(data?.levelId);
     this.levelCompleted = false;
+    this.elapsedSeconds = 0;
+    this.timerAccumulator = 0;
   }
 
   create(): void {
