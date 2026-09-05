@@ -1,0 +1,29 @@
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.screen--overlay { background: var(--ddr-overlay-bg); }
+.screen__panel {
+  background: var(--ddr-surface);
+  color: var(--ddr-text);
+  border-radius: 1rem;
+  padding: 2rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 260px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgb(0 0 0 / 0.35);
+}
+.screen__panel button {
+  padding: 0.6rem 1rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--ddr-border);
+  background: var(--ddr-accent);
+  color: var(--ddr-accent-text);
+  font-weight: 600;
+  cursor: pointer;
+}
