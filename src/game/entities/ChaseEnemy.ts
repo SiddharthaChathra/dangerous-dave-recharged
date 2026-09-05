@@ -8,7 +8,7 @@ export class ChaseEnemy extends EnemyBase {
   private targetX = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    super(scene, x, y, 0xdc2626);
+    super(scene, x, y, 'enemy_chase');
   }
 
   setPlayerX(x: number): void {

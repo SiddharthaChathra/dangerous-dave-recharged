@@ -1,72 +1,91 @@
 /* ================================================================== */
-/*  DESIGN TOKENS — Dangerous Dave: Recharged                         */
+/*  DESIGN TOKENS — Dangerous Dave: Recharged (PREMIUM AAA)           */
 /* ================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@400;500;600;700;800&family=Share+Tech+Mono&display=swap');
 
 :root {
-  /* ---- Colors ---- */
-  --ddr-bg: #0a0a10;
-  --ddr-surface: rgba(18, 18, 28, 0.92);
-  --ddr-surface-solid: #12121c;
-  --ddr-text: #e4e4ec;
-  --ddr-text-muted: #8b8b9e;
-  --ddr-hud-text: #e4e4ec;
-  --ddr-hud-bg: rgba(8, 8, 14, 0.65);
-  --ddr-border: rgba(60, 60, 90, 0.5);
-  --ddr-accent: #4ade80;
-  --ddr-accent-hover: #22c55e;
-  --ddr-accent-text: #0a0a10;
-  --ddr-danger: #ef4444;
-  --ddr-gold: #facc15;
-  --ddr-focus: #60a5fa;
-  --ddr-overlay-bg: rgba(4, 4, 8, 0.82);
-  --ddr-glow: 0 0 20px rgba(74, 222, 128, 0.25);
-  --ddr-shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.5), 0 10px 25px rgba(0, 0, 0, 0.3);
+  /* ---- Core Colors ---- */
+  --ddr-bg-base: #060609;
+  --ddr-bg-surface: rgba(14, 15, 23, 0.7);
+  --ddr-bg-elevated: rgba(22, 24, 34, 0.85);
+  
+  --ddr-text-primary: #ffffff;
+  --ddr-text-secondary: #9da3b8;
+  --ddr-text-tertiary: #606782;
+  
+  --ddr-accent-primary: #00f0ff; /* Neon cyan */
+  --ddr-accent-secondary: #ff0055; /* Neon pink/red */
+  --ddr-accent-tertiary: #7000ff; /* Deep purple */
+  
+  --ddr-gold: #ffd700;
+  --ddr-success: #00ff88;
+  --ddr-warning: #ffaa00;
+  --ddr-danger: #ff003c;
 
+  /* ---- Gradients & Glows ---- */
+  --ddr-grad-accent: linear-gradient(135deg, var(--ddr-accent-primary), #0077ff);
+  --ddr-grad-surface: linear-gradient(180deg, rgba(22,24,34,0.9) 0%, rgba(14,15,23,0.95) 100%);
+  --ddr-grad-text: linear-gradient(180deg, #ffffff 0%, #a4b1d6 100%);
+  
+  --ddr-glow-primary: 0 0 20px rgba(0, 240, 255, 0.4), 0 0 40px rgba(0, 240, 255, 0.2);
+  --ddr-glow-danger: 0 0 20px rgba(255, 0, 60, 0.4), 0 0 40px rgba(255, 0, 60, 0.2);
+  
+  /* ---- Borders & Shadows ---- */
+  --ddr-border-subtle: rgba(255, 255, 255, 0.08);
+  --ddr-border-accent: rgba(0, 240, 255, 0.3);
+  
+  --ddr-shadow-panel: 0 30px 60px rgba(0,0,0,0.6), 0 0 0 1px var(--ddr-border-subtle) inset;
+  --ddr-shadow-text: 0 2px 10px rgba(0,0,0,0.8);
+  
   /* ---- Typography ---- */
-  --ddr-font-display: 'Orbitron', system-ui, sans-serif;
-  --ddr-font-body: 'Inter', system-ui, sans-serif;
+  --ddr-font-display: 'Orbitron', sans-serif;
+  --ddr-font-body: 'Inter', sans-serif;
+  --ddr-font-mono: 'Share Tech Mono', monospace;
+  
+  /* ---- Spacing (4px grid) ---- */
+  --ddr-space-1: 4px;
+  --ddr-space-2: 8px;
+  --ddr-space-3: 12px;
+  --ddr-space-4: 16px;
+  --ddr-space-6: 24px;
+  --ddr-space-8: 32px;
+  --ddr-space-12: 48px;
+  --ddr-space-16: 64px;
 
-  /* ---- Spacing / Radius ---- */
-  --ddr-radius-sm: 0.5rem;
-  --ddr-radius-md: 0.875rem;
-  --ddr-radius-lg: 1.25rem;
-
+  /* ---- Radii ---- */
+  --ddr-radius-sm: 4px;
+  --ddr-radius-md: 8px;
+  --ddr-radius-lg: 16px;
+  --ddr-radius-xl: 24px;
+  
   /* ---- Transitions ---- */
-  --ddr-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ddr-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ddr-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ddr-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  --ddr-trans-fast: 150ms var(--ddr-ease-out);
+  --ddr-trans-normal: 300ms var(--ddr-ease-out);
+  --ddr-trans-slow: 600ms var(--ddr-ease-in-out);
 }
 
-/* ---- Light Theme ---- */
-:root[data-theme='light'] {
-  --ddr-bg: #f0f0f6;
-  --ddr-surface: rgba(255, 255, 255, 0.94);
-  --ddr-surface-solid: #ffffff;
-  --ddr-text: #1a1a24;
-  --ddr-text-muted: #6b6b80;
-  --ddr-hud-text: #1a1a24;
-  --ddr-hud-bg: rgba(255, 255, 255, 0.78);
-  --ddr-border: rgba(180, 180, 210, 0.5);
-  --ddr-accent: #16a34a;
-  --ddr-accent-hover: #15803d;
-  --ddr-accent-text: #ffffff;
-  --ddr-focus: #2563eb;
-  --ddr-overlay-bg: rgba(240, 240, 246, 0.88);
-  --ddr-glow: 0 0 20px rgba(22, 163, 74, 0.2);
-  --ddr-shadow-lg: 0 25px 60px rgba(0, 0, 0, 0.12), 0 10px 25px rgba(0, 0, 0, 0.08);
-}
-
-/* ---- Accessibility ---- */
-:root[data-reduced-motion='true'] *,
-:root[data-reduced-motion='true'] *::before,
-:root[data-reduced-motion='true'] *::after {
+/* Base Accessibility */
+:root[data-reduced-motion='true'] * {
   animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
 }
 
 :focus-visible {
-  outline: 2px solid var(--ddr-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--ddr-accent-primary);
+  outline-offset: 4px;
   border-radius: var(--ddr-radius-sm);
+}
+
+/* Disable text selection everywhere except inputs */
+* {
+  user-select: none;
+  -webkit-user-drag: none;
+}
+input, textarea {
+  user-select: auto;
 }

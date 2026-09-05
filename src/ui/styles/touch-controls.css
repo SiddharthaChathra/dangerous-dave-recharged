@@ -1,5 +1,5 @@
 /* ================================================================== */
-/*  TOUCH / MOBILE CONTROLS                                           */
+/*  TOUCH / MOBILE CONTROLS (PREMIUM AAA)                             */
 /* ================================================================== */
 
 .touch-controls {
@@ -8,46 +8,64 @@
   display: none;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 1.5rem calc(1.25rem + env(safe-area-inset-bottom));
-  z-index: 30;
+  padding: 0 var(--ddr-space-6) calc(var(--ddr-space-6) + env(safe-area-inset-bottom));
+  z-index: 100;
+  pointer-events: none; /* Let clicks pass through empty areas */
 }
 
 .touch-controls__dpad {
   display: flex;
-  gap: 0.6rem;
+  gap: var(--ddr-space-2);
+  pointer-events: auto;
 }
 
 .touch-controls__btn {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: rgba(74, 222, 128, 0.12);
-  border: 1.5px solid rgba(74, 222, 128, 0.3);
-  color: rgba(74, 222, 128, 0.7);
-  font-size: 1.2rem;
+  background: rgba(14, 15, 23, 0.4);
+  border: 1.5px solid rgba(0, 240, 255, 0.2);
+  color: rgba(0, 240, 255, 0.6);
+  font-size: 1.6rem;
   display: flex;
   align-items: center;
   justify-content: center;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  transition: all 80ms ease-out;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  transition: all 100ms var(--ddr-ease-out);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 0 10px rgba(0, 240, 255, 0.05);
 }
 
 .touch-controls__btn:active {
-  background: rgba(74, 222, 128, 0.3);
-  border-color: rgba(74, 222, 128, 0.6);
-  transform: scale(0.92);
+  background: rgba(0, 240, 255, 0.2);
+  border-color: rgba(0, 240, 255, 0.6);
+  color: var(--ddr-accent-primary);
+  transform: scale(0.9) translateY(4px);
+  box-shadow: var(--ddr-glow-primary);
 }
 
 .touch-controls__jump {
-  width: 64px;
-  height: 64px;
-  font-size: 1.4rem;
+  width: 76px;
+  height: 76px;
+  font-size: 1.8rem;
+  border-color: rgba(255, 0, 85, 0.3);
+  color: rgba(255, 0, 85, 0.7);
+  background: rgba(14, 15, 23, 0.5);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5), inset 0 0 10px rgba(255, 0, 85, 0.05);
 }
 
+.touch-controls__jump:active {
+  background: rgba(255, 0, 85, 0.2);
+  border-color: rgba(255, 0, 85, 0.8);
+  color: var(--ddr-accent-secondary);
+  box-shadow: var(--ddr-glow-danger);
+}
+
+/* Force show on coarse pointers (mobile/touch devices) */
 @media (pointer: coarse) {
   .touch-controls {
     display: flex;

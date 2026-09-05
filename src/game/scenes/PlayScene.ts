@@ -153,8 +153,8 @@ export class PlayScene extends Phaser.Scene {
       });
     }
 
-    // Set up an invisible goal zone the player overlaps to complete the level
-    const goalRect = this.add.rectangle(this.level.goal.x, this.level.goal.y, 40, 80, 0x22c55e, 0);
+    // Set up the goal portal
+    const goalRect = this.add.sprite(this.level.goal.x, this.level.goal.y - 40, 'goal_door');
     this.physics.add.existing(goalRect, true);
     this.goalZone = goalRect as unknown as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
     this.physics.add.overlap(this.player.sprite, this.goalZone, () => {

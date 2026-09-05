@@ -26,9 +26,11 @@ export class EventBus<Events extends Record<string, unknown> = Record<string, un
 export type GameEvents = {
   'score:changed': { score: number };
   'lives:changed': { lives: number };
+  'hp:changed': { hp: number; maxHp: number };
   'collectible:changed': { collected: number; total: number };
   'level:progress': { percent: number };
   'timer:tick': { seconds: number };
+  'player:progress': { pct: number };
   'player:died': { livesRemaining: number };
   'player:respawned': Record<string, never>;
   'checkpoint:reached': { id: string };

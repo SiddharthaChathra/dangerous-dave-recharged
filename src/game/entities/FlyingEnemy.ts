@@ -10,7 +10,7 @@ export class FlyingEnemy extends EnemyBase {
   private readonly periodSeconds = 2.5;
 
   constructor(scene: Phaser.Scene, x: number, y: number, amplitudePx: number) {
-    super(scene, x, y, 0xa855f7);
+    super(scene, x, y, 'enemy_flying');
     (this.sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     this.baseY = y;
     this.amplitudePx = amplitudePx;

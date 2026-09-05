@@ -22,6 +22,7 @@ const uiRoot = document.getElementById('ui-root');
 if (!uiRoot) throw new Error('ui-root element missing from index.html');
 
 const game = new Phaser.Game(createGameConfig(parent));
+(window as unknown as { __ddrDebugGame: Phaser.Game }).__ddrDebugGame = game;
 
 // Mount HUD after game is created
 const hud = new HUD(gameEvents);

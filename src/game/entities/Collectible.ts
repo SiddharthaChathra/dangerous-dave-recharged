@@ -8,10 +8,20 @@ export class Collectible {
 
   constructor(scene: Phaser.Scene, def: CollectibleDef) {
     this.kind = def.kind;
-    this.sprite = scene.physics.add.sprite(def.x, def.y, '__WHITE');
-    this.sprite.setDisplaySize(14, 14);
-    this.sprite.setTint(def.kind === 'secret' ? 0xf472b6 : 0xfacc15);
+    this.sprite = scene.physics.add.sprite(def.x, def.y, def.kind === 'secret' ? 'secret_gem' : 'gem');
+    this.sprite.setScale(0.35); // 40x40 to 14x14
+    (this.sprite.body as Phaser.Physics.Arcade.Body).setSize(14 / 0.35, 14 / 0.35);
+    (this.sprite.body as Phaser.Physics.Arcade.Body).setOffset((40 - 14/0.35) / 2, (40 - 14/0.35) / 2);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
+    
+    scene.tweens.add({
+      targets: this.sprite,
+      y: def.y - 4,
+      duration: 1000 + Math.random() * 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
   }
 
   collect(): boolean {

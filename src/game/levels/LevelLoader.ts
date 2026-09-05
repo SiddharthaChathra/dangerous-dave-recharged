@@ -43,15 +43,16 @@ export class LevelLoader {
   static buildInScene(scene: Phaser.Scene, level: LevelData): LevelBuildResult {
     const staticGroup = scene.physics.add.staticGroup();
     for (const platform of level.platforms) {
-      const rect = scene.add.rectangle(
+      // Use platform_tile texture which is 64x64, tileSprite repeats it seamlessly
+      const tile = scene.add.tileSprite(
         platform.x + platform.width / 2,
         platform.y + platform.height / 2,
         platform.width,
         platform.height,
-        0x333344,
+        'platform_tile',
       );
-      scene.physics.add.existing(rect, true);
-      staticGroup.add(rect);
+      scene.physics.add.existing(tile, true);
+      staticGroup.add(tile);
     }
 
     const movingPlatforms = level.movingPlatforms.map(

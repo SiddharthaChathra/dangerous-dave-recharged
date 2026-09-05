@@ -6,12 +6,21 @@
 
 html, body {
   height: 100%;
-  background: var(--ddr-bg);
-  color: var(--ddr-text);
+  background: var(--ddr-bg-base);
+  color: var(--ddr-text-primary);
   font-family: var(--ddr-font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  /* subtle scanline effect across the whole screen */
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.1) 50%,
+    rgba(0, 0, 0, 0.1)
+  );
+  background-size: 100% 4px;
 }
 
 #app {
@@ -21,13 +30,18 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Ambient vignette */
+  box-shadow: inset 0 0 150px rgba(0, 0, 0, 0.9);
 }
 
 #game-root {
   position: relative;
-  border-radius: var(--ddr-radius-md);
+  border-radius: var(--ddr-radius-lg);
   overflow: hidden;
-  box-shadow: 0 0 80px rgba(74, 222, 128, 0.06), 0 4px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 60px rgba(0, 240, 255, 0.05), 0 20px 80px rgba(0, 0, 0, 0.8);
+  /* A subtle inner glow for the game canvas */
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #000;
 }
 
 #ui-root {
@@ -35,6 +49,8 @@ html, body {
   inset: 0;
   pointer-events: none;
   z-index: 10;
+  display: flex;
+  flex-direction: column;
 }
 
 #ui-root > * {
@@ -44,4 +60,5 @@ html, body {
 /* ---- Scrollbar (minimal) ---- */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--ddr-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ddr-accent-primary); }

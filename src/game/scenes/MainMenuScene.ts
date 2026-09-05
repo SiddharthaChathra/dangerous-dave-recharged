@@ -1,11 +1,15 @@
 import Phaser from 'phaser';
+import { buildParallaxLayers } from '../levels/parallax';
 
 /**
- * Animated background scene behind the DOM MainMenu.
- * Draws floating particles and a subtle atmosphere.
+ * Cinematic animated background scene behind the DOM MainMenu.
+ * Displays a beautiful endless panning environment with a hero character.
  */
 export class MainMenuScene extends Phaser.Scene {
-  private particles: { x: number; y: number; vx: number; vy: number; size: number; alpha: number }[] = [];
+  private cameraScrollX = 0;
+  private heroSprite!: Phaser.GameObjects.Sprite;
+  private environmentLayers: any[] = [];
+  private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super('MainMenu');
@@ -14,48 +18,81 @@ export class MainMenuScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
 
-    // Dark gradient background
-    const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x0a0a10);
-    bg.setDepth(-10);
+    // Use the striking 'neon' palette for the main menu hero shot
+    this.environmentLayers = buildParallaxLayers(this, 'neon', width * 4, height);
 
-    // Subtle grid pattern
-    const grid = this.add.graphics();
-    grid.lineStyle(1, 0x1e293b, 0.15);
-    for (let x = 0; x < width; x += 40) {
-      grid.lineBetween(x, 0, x, height);
-    }
-    for (let y = 0; y < height; y += 40) {
-      grid.lineBetween(0, y, width, y);
-    }
-    grid.setDepth(-9);
+    // Create cinematic lighting (vignette + glows)
+    const vignette = this.add.graphics();
+    vignette.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.8, 0.8, 0, 0);
+    vignette.fillRect(0, 0, width, height);
+    vignette.setScrollFactor(0).setDepth(-5);
 
-    // Create floating particles
-    for (let i = 0; i < 30; i++) {
-      this.particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 20,
-        vy: (Math.random() - 0.5) * 15 - 5,
-        size: 1 + Math.random() * 3,
-        alpha: 0.1 + Math.random() * 0.3,
-      });
-    }
+    // Add ambient particles (dust/sparks)
+    this.particles = this.add.particles(0, 0, 'particle', {
+      x: { min: 0, max: width },
+      y: { min: height - 100, max: height },
+      lifespan: { min: 3000, max: 8000 },
+      speedY: { min: -10, max: -30 },
+      speedX: { min: -20, max: 20 },
+      scale: { start: 0.6, end: 0 },
+      alpha: { start: 0.8, end: 0 },
+      tint: 0x00f0ff,
+      blendMode: 'ADD',
+      frequency: 150
+    });
+    this.particles.setScrollFactor(0).setDepth(10);
+
+    // Place the Hero Character
+    // We position it slightly left of center to balance the UI which usually sits in the middle/right
+    this.heroSprite = this.add.sprite(width * 0.4, height - 120, 'player_idle');
+    this.heroSprite.setOrigin(0.5, 1);
+    this.heroSprite.setScale(2.5); // make character large and heroic
+    this.heroSprite.setScrollFactor(0); // Lock to screen
+    this.heroSprite.setDepth(20);
+
+    // Hero subtle idle breathing animation (scale Y)
+    this.tweens.add({
+      targets: this.heroSprite,
+      scaleY: 2.45,
+      scaleX: 2.52,
+      duration: 1500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
+
+    // Hero glow
+    const heroGlow = this.add.sprite(width * 0.4, height - 150, 'particle');
+    heroGlow.setScale(20);
+    heroGlow.setTint(0x00f0ff);
+    heroGlow.setAlpha(0.15);
+    heroGlow.setBlendMode('ADD');
+    heroGlow.setScrollFactor(0);
+    heroGlow.setDepth(19);
+    
+    this.tweens.add({
+      targets: heroGlow,
+      alpha: 0.25,
+      scale: 22,
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
+    });
   }
 
   update(_time: number, delta: number): void {
-    // Animate particles (using simple graphics — no external assets needed)
-    const { width, height } = this.scale;
     const dt = delta / 1000;
+    
+    // Pan the camera endlessly to the right to create cinematic motion
+    this.cameraScrollX += 40 * dt;
+    this.cameras.main.scrollX = this.cameraScrollX;
 
-    for (const p of this.particles) {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-
-      // Wrap around
-      if (p.x < 0) p.x = width;
-      if (p.x > width) p.x = 0;
-      if (p.y < 0) p.y = height;
-      if (p.y > height) p.y = 0;
+    // We rely on parallax logic wrapping internally if needed,
+    // but building very wide parallax layers works for menus usually.
+    // If it runs too long, reset to create infinite loop
+    if (this.cameraScrollX > this.scale.width * 2) {
+      this.cameraScrollX = 0;
     }
   }
 }

@@ -10,7 +10,7 @@ export class PatrolEnemy extends EnemyBase {
   private readonly speedPxPerSec = 60;
 
   constructor(scene: Phaser.Scene, x: number, y: number, rangePx: number) {
-    super(scene, x, y, 0xf97316);
+    super(scene, x, y, 'enemy_patrol');
     this.startX = x;
     this.rangePx = rangePx;
   }
