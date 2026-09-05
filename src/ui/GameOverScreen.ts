@@ -1,4 +1,5 @@
 import type { EventBus, GameEvents } from '../game/core/EventBus';
+import { audioSystem } from '../game/core/audio';
 
 export interface GameOverData {
   finalScore: number;
@@ -24,8 +25,14 @@ export class GameOverScreen {
     `;
     root.appendChild(container);
     this.container = container;
-    container.querySelector('[data-gameover="retry"]')!.addEventListener('click', () => this.bus.emit('game:started', { levelId: 'level001' }));
-    container.querySelector('[data-gameover="menu"]')!.addEventListener('click', () => this.bus.emit('game:started', { levelId: 'menu' }));
+    container.querySelector('[data-gameover="retry"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: 'level001' });
+    });
+    container.querySelector('[data-gameover="menu"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: 'menu' });
+    });
   }
 
   destroy(): void {

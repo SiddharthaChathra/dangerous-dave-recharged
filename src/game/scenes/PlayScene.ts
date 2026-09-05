@@ -13,6 +13,7 @@ import { ChaseEnemy } from '../entities/ChaseEnemy';
 import { Checkpoint } from '../entities/Checkpoint';
 import { Collectible } from '../entities/Collectible';
 import { gameEvents } from '../core/EventBus';
+import { audioSystem } from '../core/audio';
 import { createLivesState, applyDamage, setCheckpoint, type LivesState } from '../../utils/livesReducer';
 import { createScoreState, collectGem, collectSecret, type ScoreState } from '../../utils/scoring';
 import type { MoveInput } from '../../utils/physics';
@@ -118,6 +119,7 @@ export class PlayScene extends Phaser.Scene {
         if (checkpoint.activate()) {
           this.livesState = setCheckpoint(this.livesState, checkpoint.id);
           gameEvents.emit('checkpoint:reached', { id: checkpoint.id });
+          audioSystem.playSfx('checkpoint');
         }
       });
     }
@@ -133,6 +135,7 @@ export class PlayScene extends Phaser.Scene {
           }
           gameEvents.emit('score:changed', { score: this.scoreState.score });
           gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
+          audioSystem.playSfx('collect');
         }
       });
     }
@@ -146,6 +149,12 @@ export class PlayScene extends Phaser.Scene {
     });
 
     this.cursors = this.input.keyboard!.createCursorKeys();
+
+    audioSystem.startMusic();
+  }
+
+  shutdown(): void {
+    audioSystem.stopMusic();
   }
 
   update(_time: number, delta: number): void {
@@ -155,7 +164,8 @@ export class PlayScene extends Phaser.Scene {
       jumpPressed: Phaser.Input.Keyboard.JustDown(this.cursors.up),
       jumpHeld: this.cursors.up.isDown,
     };
-    this.player.update(delta, input);
+    const { jumped } = this.player.update(delta, input);
+    if (jumped) audioSystem.playSfx('jump');
     for (const mp of this.movingPlatforms) {
       mp.update(delta);
     }
@@ -193,6 +203,7 @@ export class PlayScene extends Phaser.Scene {
       collected: this.scoreState.collected,
       total: this.scoreState.total,
     });
+    audioSystem.playSfx('levelComplete');
   }
 
   private handleDamageSource(): void {
@@ -203,6 +214,7 @@ export class PlayScene extends Phaser.Scene {
       gameEvents.emit('lives:changed', { lives: this.livesState.lives });
       this.cameraController.shake();
       gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
+      audioSystem.playSfx('damage');
 
       // Respawn at last checkpoint or level start
       const respawnPos = this.livesState.checkpointId

@@ -1,4 +1,5 @@
 import type { EventBus, GameEvents } from '../game/core/EventBus';
+import { audioSystem } from '../game/core/audio';
 
 export class MainMenu {
   private container: HTMLElement | null = null;
@@ -17,7 +18,14 @@ export class MainMenu {
     `;
     root.appendChild(container);
     this.container = container;
-    container.querySelector('[data-menu="play"]')!.addEventListener('click', () => this.bus.emit('game:started', { levelId: 'level001' }));
+    container.querySelector('[data-menu="play"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: 'level001' });
+    });
+    container.querySelector('[data-menu="settings"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('settings:open', {});
+    });
   }
 
   destroy(): void {

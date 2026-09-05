@@ -24,7 +24,7 @@ export class Player {
     return body.blocked.down || body.touching.down;
   }
 
-  update(dtMs: number, input: MoveInput): void {
+  update(dtMs: number, input: MoveInput): { jumped: boolean } {
     const dtSeconds = dtMs / 1000;
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
@@ -38,6 +38,8 @@ export class Player {
 
     if (input.right) this.sprite.setFlipX(false);
     else if (input.left) this.sprite.setFlipX(true);
+
+    return { jumped: shouldJump };
   }
 
   setPosition(x: number, y: number): void {

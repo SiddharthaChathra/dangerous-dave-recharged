@@ -1,5 +1,6 @@
 import type { EventBus, GameEvents } from '../game/core/EventBus';
 import type { Rating } from '../utils/scoring';
+import { audioSystem } from '../game/core/audio';
 
 export interface LevelCompleteData {
   score: number;
@@ -29,9 +30,10 @@ export class LevelCompleteScreen {
     `;
     root.appendChild(container);
     this.container = container;
-    container.querySelector('[data-levelcomplete="continue"]')!.addEventListener('click', () =>
-      this.bus.emit('game:started', { levelId: this.data.nextLevelId ?? 'menu' }),
-    );
+    container.querySelector('[data-levelcomplete="continue"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: this.data.nextLevelId ?? 'menu' });
+    });
   }
 
   destroy(): void {

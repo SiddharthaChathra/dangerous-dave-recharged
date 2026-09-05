@@ -1,4 +1,5 @@
 import type { EventBus, GameEvents } from '../game/core/EventBus';
+import { audioSystem } from '../game/core/audio';
 
 export class PauseMenu {
   private container: HTMLElement | null = null;
@@ -19,9 +20,22 @@ export class PauseMenu {
     `;
     root.appendChild(container);
     this.container = container;
-    container.querySelector('[data-pause="resume"]')!.addEventListener('click', () => this.bus.emit('game:resume', {}));
-    container.querySelector('[data-pause="restart"]')!.addEventListener('click', () => this.bus.emit('game:started', { levelId: 'restart' }));
-    container.querySelector('[data-pause="exit"]')!.addEventListener('click', () => this.bus.emit('game:started', { levelId: 'menu' }));
+    container.querySelector('[data-pause="resume"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:resume', {});
+    });
+    container.querySelector('[data-pause="restart"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: 'restart' });
+    });
+    container.querySelector('[data-pause="settings"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('settings:open', {});
+    });
+    container.querySelector('[data-pause="exit"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('game:started', { levelId: 'menu' });
+    });
   }
 
   destroy(): void {

@@ -37,6 +37,7 @@ export type GameEvents = {
   'game:pause': Record<string, never>;
   'game:resume': Record<string, never>;
   'game:started': { levelId: string };
+  'settings:open': Record<string, never>;
   'settings:changed': {
     musicVolume: number;
     sfxVolume: number;
