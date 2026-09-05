@@ -24,6 +24,12 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Enables GitHub Pages (build_type: workflow) via the API using this workflow's
+      # own GITHUB_TOKEN, so a fresh repo needs no manual Settings -> Pages click before
+      # the first deploy. Idempotent: a no-op once Pages is already configured.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
