@@ -164,6 +164,17 @@ export class PlayScene extends Phaser.Scene {
     this.inputController = new InputController(this);
 
     audioSystem.startMusic();
+
+    // Test seam: expose a deterministic way for Playwright/E2E tests to trigger the exact
+    // same level-complete path a real goal-touch would trigger, without depending on
+    // pixel-perfect play. Guarded so it only ever attaches once (module-level check on the
+    // global, since PlayScene is re-created every time a level (re)starts).
+    const globalWindow = window as unknown as Record<string, unknown>;
+    if (!globalWindow.__ddrTestHooks) {
+      globalWindow.__ddrTestHooks = {
+        completeLevel: () => this.handleLevelComplete(),
+      };
+    }
   }
 
   shutdown(): void {
