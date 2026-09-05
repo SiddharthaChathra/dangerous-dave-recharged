@@ -1,0 +1,18 @@
+.touch-controls {
+  position: absolute;
+  inset: auto 0 0 0;
+  display: none;
+  justify-content: space-between;
+  padding: 0 1.25rem calc(1rem + env(safe-area-inset-bottom));
+}
+.touch-controls__dpad { display: flex; gap: 0.75rem; }
+.touch-controls__btn {
+  width: 60px; height: 60px; border-radius: 999px;
+  background: rgb(255 255 255 / 0.15);
+  border: 1px solid rgb(255 255 255 / 0.3);
+  color: #fff; font-size: 1.4rem;
+  touch-action: none; user-select: none;
+}
+@media (pointer: coarse) {
+  .touch-controls { display: flex; }
+}

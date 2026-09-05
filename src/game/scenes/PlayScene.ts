@@ -12,6 +12,7 @@ import { EnemyBase } from '../entities/EnemyBase';
 import { ChaseEnemy } from '../entities/ChaseEnemy';
 import { Checkpoint } from '../entities/Checkpoint';
 import { Collectible } from '../entities/Collectible';
+import { InputController } from '../systems/InputController';
 import { gameEvents } from '../core/EventBus';
 import { audioSystem } from '../core/audio';
 import { createLivesState, applyDamage, setCheckpoint, type LivesState } from '../../utils/livesReducer';
@@ -21,7 +22,7 @@ import type { MoveInput } from '../../utils/physics';
 export class PlayScene extends Phaser.Scene {
   private level!: LevelData;
   private player!: Player;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  private inputController!: InputController;
   private movingPlatforms: MovingPlatform[] = [];
   private fallingPlatforms: FallingPlatform[] = [];
   private hazards: Hazard[] = [];
@@ -148,7 +149,7 @@ export class PlayScene extends Phaser.Scene {
       this.handleLevelComplete();
     });
 
-    this.cursors = this.input.keyboard!.createCursorKeys();
+    this.inputController = new InputController(this);
 
     audioSystem.startMusic();
   }
@@ -157,12 +158,18 @@ export class PlayScene extends Phaser.Scene {
     audioSystem.stopMusic();
   }
 
+  getInputController(): InputController {
+    return this.inputController;
+  }
+
   update(_time: number, delta: number): void {
+    const state = this.inputController.getState();
+    if (state.pausePressed) gameEvents.emit('game:pause', {});
     const input: MoveInput = {
-      left: this.cursors.left.isDown,
-      right: this.cursors.right.isDown,
-      jumpPressed: Phaser.Input.Keyboard.JustDown(this.cursors.up),
-      jumpHeld: this.cursors.up.isDown,
+      left: state.left,
+      right: state.right,
+      jumpPressed: state.jumpPressed,
+      jumpHeld: state.jumpHeld,
     };
     const { jumped } = this.player.update(delta, input);
     if (jumped) audioSystem.playSfx('jump');

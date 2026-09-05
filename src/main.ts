@@ -7,6 +7,8 @@ import { PauseMenu } from './ui/PauseMenu';
 import { GameOverScreen } from './ui/GameOverScreen';
 import { LevelCompleteScreen } from './ui/LevelCompleteScreen';
 import { SettingsPanel } from './ui/SettingsPanel';
+import { TouchControls } from './ui/TouchControls';
+import type { PlayScene } from './game/scenes/PlayScene';
 import { DEFAULT_LEVEL_ID, getLevel, getNextLevelId } from './game/levels/registry';
 import { loadSave, writeSave, updateHighScore, unlockLevel, recordLevelResult } from './game/systems/SaveSystem';
 import { computeRating } from './utils/scoring';
@@ -45,6 +47,12 @@ let settingsPanel: SettingsPanel | null = null;
 // The level actually running, used to resolve PauseMenu's 'restart' sentinel.
 let currentLevelId: string = DEFAULT_LEVEL_ID;
 
+// The mounted TouchControls, bound at construction time to one Play scene's InputController.
+// A fresh InputController is created every time PlayScene.create() runs, so a fresh
+// TouchControls instance is created (and the old one destroyed) to match, each time Play
+// (re)starts.
+let touchControls: TouchControls | null = null;
+
 function showScreen(screen: { destroy(): void } | null): void {
   currentScreen?.destroy();
   currentScreen = screen;
@@ -52,6 +60,8 @@ function showScreen(screen: { destroy(): void } | null): void {
 
 gameEvents.on('game:started', ({ levelId }) => {
   if (levelId === 'menu') {
+    touchControls?.destroy();
+    touchControls = null;
     const menu = new MainMenu(gameEvents);
     menu.mount(uiRoot);
     showScreen(menu);
@@ -61,6 +71,23 @@ gameEvents.on('game:started', ({ levelId }) => {
   const resolvedId = levelId === 'restart' ? currentLevelId : levelId;
   currentLevelId = resolvedId;
   showScreen(null);
+
+  // The scene instance for 'Play' is registered (and thus retrievable via getScene) from the
+  // moment the Phaser game is constructed, since it's listed in GameConfig's `scene` array —
+  // but its InputController field is only assigned once create() actually runs. Whether
+  // scene.start() runs create() synchronously (observed in this Phaser version) or defers it to
+  // the next game step, subscribing to the scene's own CREATE lifecycle event BEFORE calling
+  // start() is what's safe in both cases: a listener attached after start() can lose the race
+  // entirely if create() already ran synchronously and the event already fired (the mirror image
+  // of Task 13's self-emission-loop bug, where the risk was reading a stale/not-yet-replaced
+  // instance instead). Attaching first means the freshly-(re)created InputController is
+  // guaranteed to exist by the time the callback runs, regardless of that timing.
+  const playScene = game.scene.getScene('Play') as PlayScene;
+  playScene.events.once(Phaser.Scenes.Events.CREATE, () => {
+    touchControls?.destroy();
+    touchControls = new TouchControls(playScene.getInputController());
+    touchControls.mount(uiRoot);
+  });
   game.scene.start('Play', { levelId: resolvedId });
 });
 
