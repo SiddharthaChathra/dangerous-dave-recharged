@@ -4,6 +4,7 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { Checkpoint } from '../entities/Checkpoint';
+import { Collectible } from '../entities/Collectible';
 import { EnemyBase } from '../entities/EnemyBase';
 import { PatrolEnemy } from '../entities/PatrolEnemy';
 import { FlyingEnemy } from '../entities/FlyingEnemy';
@@ -22,6 +23,8 @@ export interface LevelBuildResult {
   hazards: Hazard[];
   enemies: EnemyBase[];
   checkpoints: Checkpoint[];
+  collectibles: Collectible[];
+  totalCollectibles: number;
   level: LevelData;
 }
 
@@ -55,6 +58,8 @@ export class LevelLoader {
 
     const hazards = level.hazards.map((def) => new Hazard(scene, def));
     const checkpoints = level.checkpoints.map((def) => new Checkpoint(scene, def));
+    const collectibles = level.collectibles.map((def) => new Collectible(scene, def));
+    const totalCollectibles = level.collectibles.length;
 
     const enemies = level.enemies.map((def) => {
       if (def.kind === 'patrol') {
@@ -73,6 +78,6 @@ export class LevelLoader {
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, hazards, enemies, checkpoints, level };
+    return { player, staticGroup, movingPlatforms, hazards, enemies, checkpoints, collectibles, totalCollectibles, level };
   }
 }

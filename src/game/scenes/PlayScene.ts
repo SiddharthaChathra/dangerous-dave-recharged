@@ -9,8 +9,10 @@ import { Hazard } from '../entities/Hazard';
 import { EnemyBase } from '../entities/EnemyBase';
 import { ChaseEnemy } from '../entities/ChaseEnemy';
 import { Checkpoint } from '../entities/Checkpoint';
+import { Collectible } from '../entities/Collectible';
 import { gameEvents } from '../core/EventBus';
 import { createLivesState, applyDamage, setCheckpoint, type LivesState } from '../../utils/livesReducer';
+import { createScoreState, collectGem, collectSecret, type ScoreState } from '../../utils/scoring';
 import type { MoveInput } from '../../utils/physics';
 
 export class PlayScene extends Phaser.Scene {
@@ -20,8 +22,10 @@ export class PlayScene extends Phaser.Scene {
   private hazards: Hazard[] = [];
   private enemies: EnemyBase[] = [];
   private checkpoints: Checkpoint[] = [];
+  private collectibles: Collectible[] = [];
   private cameraController!: CameraController;
   private livesState!: LivesState;
+  private scoreState!: ScoreState;
   private lastDamageTime = 0;
   private invulnerabilityWindowMs = 1000;
 
@@ -42,11 +46,15 @@ export class PlayScene extends Phaser.Scene {
     this.hazards = levelBuild.hazards;
     this.enemies = levelBuild.enemies;
     this.checkpoints = levelBuild.checkpoints;
+    this.collectibles = levelBuild.collectibles;
 
     // Initialize lives state
     this.livesState = createLivesState();
     // Initialize lastDamageTime to negative so first damage always applies
     this.lastDamageTime = -this.invulnerabilityWindowMs;
+
+    // Initialize score state
+    this.scoreState = createScoreState(levelBuild.totalCollectibles);
 
     // Attach camera controller with bounds matching level dimensions
     this.cameraController = new CameraController();
@@ -80,6 +88,21 @@ export class PlayScene extends Phaser.Scene {
         if (checkpoint.activate()) {
           this.livesState = setCheckpoint(this.livesState, checkpoint.id);
           gameEvents.emit('checkpoint:reached', { id: checkpoint.id });
+        }
+      });
+    }
+
+    // Set up collectible overlaps
+    for (const collectible of this.collectibles) {
+      this.physics.add.overlap(this.player.sprite, collectible.sprite, () => {
+        if (collectible.collect()) {
+          if (collectible.kind === 'gem') {
+            this.scoreState = collectGem(this.scoreState);
+          } else if (collectible.kind === 'secret') {
+            this.scoreState = collectSecret(this.scoreState);
+          }
+          gameEvents.emit('score:changed', { score: this.scoreState.score });
+          gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
         }
       });
     }
@@ -133,7 +156,7 @@ export class PlayScene extends Phaser.Scene {
 
       // Check if game is over
       if (this.livesState.isGameOver) {
-        gameEvents.emit('game:over', { finalScore: 0, bestScore: 0 });
+        gameEvents.emit('game:over', { finalScore: this.scoreState.score, bestScore: 0 });
       }
     }
   }
