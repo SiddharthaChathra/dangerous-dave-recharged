@@ -4,6 +4,8 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { Checkpoint } from '../entities/Checkpoint';
+import { EnemyBase } from '../entities/EnemyBase';
+import { PatrolEnemy } from '../entities/PatrolEnemy';
 
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
@@ -16,6 +18,7 @@ export interface LevelBuildResult {
   staticGroup: Phaser.Physics.Arcade.StaticGroup;
   movingPlatforms: MovingPlatform[];
   hazards: Hazard[];
+  enemies: EnemyBase[];
   checkpoints: Checkpoint[];
   level: LevelData;
 }
@@ -51,10 +54,17 @@ export class LevelLoader {
     const hazards = level.hazards.map((def) => new Hazard(scene, def));
     const checkpoints = level.checkpoints.map((def) => new Checkpoint(scene, def));
 
+    const enemies = level.enemies.map((def) => {
+      if (def.kind === 'patrol') {
+        return new PatrolEnemy(scene, def.x, def.y, def.rangePx);
+      }
+      throw new Error(`Unhandled enemy kind: ${def.kind}`);
+    });
+
     const player = new Player(scene, level.playerStart.x, level.playerStart.y);
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, hazards, checkpoints, level };
+    return { player, staticGroup, movingPlatforms, hazards, enemies, checkpoints, level };
   }
 }
