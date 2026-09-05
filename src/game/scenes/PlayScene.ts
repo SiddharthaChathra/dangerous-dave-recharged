@@ -41,7 +41,8 @@ export class PlayScene extends Phaser.Scene {
 
     // Initialize lives state
     this.livesState = createLivesState();
-    this.lastDamageTime = 0;
+    // Initialize lastDamageTime to negative so first damage always applies
+    this.lastDamageTime = -this.invulnerabilityWindowMs;
 
     // Attach camera controller with bounds matching level dimensions
     this.cameraController = new CameraController();
