@@ -11,6 +11,7 @@ import { DEFAULT_LEVEL_ID, getLevel, getNextLevelId } from './game/levels/regist
 import { loadSave, writeSave, updateHighScore, unlockLevel, recordLevelResult } from './game/systems/SaveSystem';
 import { computeRating } from './utils/scoring';
 import { audioSystem } from './game/core/audio';
+import { applyTheme, applyReducedMotion, prefersReducedMotion } from './ui/theme';
 
 const parent = document.getElementById('game-root');
 if (!parent) throw new Error('game-root element missing from index.html');
@@ -29,6 +30,10 @@ const initialSave = loadSave(window.localStorage);
 audioSystem.setMusicVolume(initialSave.settings.musicVolume);
 audioSystem.setSfxVolume(initialSave.settings.sfxVolume);
 audioSystem.setMuted(initialSave.settings.muted);
+
+// Apply theme and reduced motion from persisted settings.
+applyTheme(initialSave.settings.theme);
+applyReducedMotion(initialSave.settings.reducedMotion || prefersReducedMotion());
 
 // The currently-mounted DOM screen (menu / pause / game-over / level-complete), if any.
 let currentScreen: { destroy(): void } | null = null;
@@ -116,7 +121,9 @@ gameEvents.on('settings:changed', (settings) => {
   audioSystem.setSfxVolume(settings.sfxVolume);
   audioSystem.setMuted(settings.muted);
 
-  // Theme/reducedMotion are persisted here but not yet applied visually — that's Task 17's job.
+  applyTheme(settings.theme);
+  applyReducedMotion(settings.reducedMotion);
+
   const save = loadSave(window.localStorage);
   const updated = { ...save, settings };
   writeSave(window.localStorage, updated);

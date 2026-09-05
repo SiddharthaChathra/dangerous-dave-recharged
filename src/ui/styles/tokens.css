@@ -1,1 +1,31 @@
-/* populated in Task 17 */
+:root {
+  --ddr-bg: #0b0b12;
+  --ddr-surface: #16161f;
+  --ddr-text: #f4f4f6;
+  --ddr-hud-text: #f4f4f6;
+  --ddr-hud-bg: rgb(10 10 16 / 0.55);
+  --ddr-border: #2c2c3a;
+  --ddr-accent: #4ade80;
+  --ddr-accent-text: #0b0b12;
+  --ddr-focus: #60a5fa;
+  --ddr-overlay-bg: rgb(5 5 10 / 0.72);
+}
+
+:root[data-theme='light'] {
+  --ddr-bg: #f4f4f8;
+  --ddr-surface: #ffffff;
+  --ddr-text: #17171f;
+  --ddr-hud-text: #17171f;
+  --ddr-hud-bg: rgb(255 255 255 / 0.7);
+  --ddr-border: #d8d8e2;
+  --ddr-accent: #15803d;
+  --ddr-accent-text: #ffffff;
+  --ddr-focus: #1d4ed8;
+  --ddr-overlay-bg: rgb(255 255 255 / 0.75);
+}
+
+:root[data-reduced-motion='true'] * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
