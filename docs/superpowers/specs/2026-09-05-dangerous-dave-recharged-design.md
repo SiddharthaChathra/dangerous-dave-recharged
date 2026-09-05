@@ -145,10 +145,16 @@ mood. Music/SFX volume sliders + mute, persisted. Documented in `ASSETS.md`.
 
 ## Art
 
-Original pixel-art-style sprites (player run/idle/jump/fall/hurt/death,
-3 enemies, tiles, collectibles, parallax backgrounds per level) authored as
-new assets for this project (hand-drawn/generated sprite sheets), not sourced
-from any existing game. Documented in `ASSETS.md`.
+Original geometric/procedural art (no downloaded or hand-illustrated sprite
+sheets): player, enemies, tiles, and collectibles are distinct tinted shapes
+built from Phaser primitives, brought to life with procedural animation
+(squash/stretch on jump/land, run-cycle bob, directional flip, hurt flash,
+death spin/fade — tween-driven, not frame-by-frame sprite sheets). Each
+level renders 2-3 scrolling parallax layers (flat-color/gradient rectangles
+at different scroll factors) using that level's palette, satisfying the
+"layered backgrounds, parallax, distinct level palettes" requirement without
+authoring illustrated backgrounds. This keeps every visual original and
+license-free by construction. Documented in `ASSETS.md`.
 
 ## Persistence
 
