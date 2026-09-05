@@ -60,29 +60,7 @@ export class PlayScene extends Phaser.Scene {
     for (const hazard of this.hazards) {
       this.physics.add.overlap(this.player.sprite, hazard.sprite, () => {
         if (this.livesState.isGameOver) return;
-        const now = this.time.now;
-        if (now - this.lastDamageTime >= this.invulnerabilityWindowMs) {
-          this.lastDamageTime = now;
-          this.livesState = applyDamage(this.livesState);
-          gameEvents.emit('lives:changed', { lives: this.livesState.lives });
-          this.cameraController.shake();
-          gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
-
-          // Respawn at last checkpoint or level start
-          const respawnPos = this.livesState.checkpointId
-            ? this.checkpoints.find((cp) => cp.id === this.livesState.checkpointId)
-            : null;
-          if (respawnPos) {
-            this.player.setPosition(respawnPos.sprite.x, respawnPos.sprite.y);
-          } else {
-            this.player.setPosition(level001.playerStart.x, level001.playerStart.y);
-          }
-
-          // Check if game is over
-          if (this.livesState.isGameOver) {
-            gameEvents.emit('game:over', { finalScore: 0, bestScore: 0 });
-          }
-        }
+        this.handleDamageSource();
       });
     }
 
@@ -91,29 +69,7 @@ export class PlayScene extends Phaser.Scene {
       this.physics.add.overlap(this.player.sprite, enemy.sprite, () => {
         if (this.livesState.isGameOver) return;
         if (enemy.context.state === 'dead') return;
-        const now = this.time.now;
-        if (now - this.lastDamageTime >= this.invulnerabilityWindowMs) {
-          this.lastDamageTime = now;
-          this.livesState = applyDamage(this.livesState);
-          gameEvents.emit('lives:changed', { lives: this.livesState.lives });
-          this.cameraController.shake();
-          gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
-
-          // Respawn at last checkpoint or level start
-          const respawnPos = this.livesState.checkpointId
-            ? this.checkpoints.find((cp) => cp.id === this.livesState.checkpointId)
-            : null;
-          if (respawnPos) {
-            this.player.setPosition(respawnPos.sprite.x, respawnPos.sprite.y);
-          } else {
-            this.player.setPosition(level001.playerStart.x, level001.playerStart.y);
-          }
-
-          // Check if game is over
-          if (this.livesState.isGameOver) {
-            gameEvents.emit('game:over', { finalScore: 0, bestScore: 0 });
-          }
-        }
+        this.handleDamageSource();
       });
     }
 
@@ -149,6 +105,32 @@ export class PlayScene extends Phaser.Scene {
         this.player.sprite.y,
       );
       enemy.tick(delta, distanceToPlayer);
+    }
+  }
+
+  private handleDamageSource(): void {
+    const now = this.time.now;
+    if (now - this.lastDamageTime >= this.invulnerabilityWindowMs) {
+      this.lastDamageTime = now;
+      this.livesState = applyDamage(this.livesState);
+      gameEvents.emit('lives:changed', { lives: this.livesState.lives });
+      this.cameraController.shake();
+      gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
+
+      // Respawn at last checkpoint or level start
+      const respawnPos = this.livesState.checkpointId
+        ? this.checkpoints.find((cp) => cp.id === this.livesState.checkpointId)
+        : null;
+      if (respawnPos) {
+        this.player.setPosition(respawnPos.sprite.x, respawnPos.sprite.y);
+      } else {
+        this.player.setPosition(level001.playerStart.x, level001.playerStart.y);
+      }
+
+      // Check if game is over
+      if (this.livesState.isGameOver) {
+        gameEvents.emit('game:over', { finalScore: 0, bestScore: 0 });
+      }
     }
   }
 }
