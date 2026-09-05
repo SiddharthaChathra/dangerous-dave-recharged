@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
+import { MovingPlatform } from '../entities/MovingPlatform';
 import type { MoveInput } from '../../utils/physics';
 
 export class PlayScene extends Phaser.Scene {
   private player!: Player;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private ground!: Phaser.Physics.Arcade.StaticGroup;
+  private movingPlatform!: MovingPlatform;
+  private movingPlatformGroup!: Phaser.Physics.Arcade.Group;
 
   constructor() {
     super('Play');
@@ -18,8 +21,13 @@ export class PlayScene extends Phaser.Scene {
     this.physics.add.existing(groundRect, true);
     this.ground.add(groundRect);
 
+    this.movingPlatformGroup = this.physics.add.group();
+    this.movingPlatform = new MovingPlatform(this, 300, 350, 80, 100, 100);
+    this.movingPlatformGroup.add(this.movingPlatform.sprite);
+
     this.player = new Player(this, 100, 400);
     this.physics.add.collider(this.player.sprite, this.ground);
+    this.physics.add.collider(this.player.sprite, this.movingPlatformGroup);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
   }
@@ -32,6 +40,7 @@ export class PlayScene extends Phaser.Scene {
       jumpHeld: this.cursors.up.isDown,
     };
     this.player.update(delta, input);
+    this.movingPlatform.update(delta);
   }
 }
 
