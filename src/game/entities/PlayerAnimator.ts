@@ -56,6 +56,7 @@ export class PlayerAnimator {
         });
         break;
       case 'death':
+        this.scene.tweens.killTweensOf(this.sprite);
         this.scene.tweens.add({ targets: this.sprite, angle: 360, alpha: 0, duration: 500, ease: 'Cubic.In' });
         break;
       default:
