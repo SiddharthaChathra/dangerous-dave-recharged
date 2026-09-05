@@ -27,4 +27,3 @@
   font-weight: 600;
   cursor: pointer;
 }
-.screen__panel button:focus-visible { outline: 2px solid var(--ddr-focus); outline-offset: 2px; }

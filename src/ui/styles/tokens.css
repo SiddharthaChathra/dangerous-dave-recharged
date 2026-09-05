@@ -1,3 +1,8 @@
+:focus-visible {
+  outline: 2px solid var(--ddr-focus);
+  outline-offset: 2px;
+}
+
 :root {
   --ddr-bg: #0b0b12;
   --ddr-surface: #16161f;
