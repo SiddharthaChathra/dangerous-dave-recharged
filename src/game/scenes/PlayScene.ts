@@ -127,8 +127,6 @@ export class PlayScene extends Phaser.Scene {
     });
 
     this.cursors = this.input.keyboard!.createCursorKeys();
-
-    gameEvents.emit('game:started', { levelId: this.level.id });
   }
 
   update(_time: number, delta: number): void {
