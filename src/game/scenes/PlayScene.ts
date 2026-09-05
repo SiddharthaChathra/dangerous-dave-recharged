@@ -56,6 +56,7 @@ export class PlayScene extends Phaser.Scene {
     // Set up hazard overlaps with invulnerability window
     for (const hazard of this.hazards) {
       this.physics.add.overlap(this.player.sprite, hazard.sprite, () => {
+        if (this.livesState.isGameOver) return;
         const now = this.time.now;
         if (now - this.lastDamageTime >= this.invulnerabilityWindowMs) {
           this.lastDamageTime = now;
