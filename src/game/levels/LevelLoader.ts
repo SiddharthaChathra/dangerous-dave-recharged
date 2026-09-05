@@ -6,6 +6,8 @@ import { Hazard } from '../entities/Hazard';
 import { Checkpoint } from '../entities/Checkpoint';
 import { EnemyBase } from '../entities/EnemyBase';
 import { PatrolEnemy } from '../entities/PatrolEnemy';
+import { FlyingEnemy } from '../entities/FlyingEnemy';
+import { ChaseEnemy } from '../entities/ChaseEnemy';
 
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
@@ -57,6 +59,12 @@ export class LevelLoader {
     const enemies = level.enemies.map((def) => {
       if (def.kind === 'patrol') {
         return new PatrolEnemy(scene, def.x, def.y, def.rangePx);
+      }
+      if (def.kind === 'flying') {
+        return new FlyingEnemy(scene, def.x, def.y, def.rangePx);
+      }
+      if (def.kind === 'chase') {
+        return new ChaseEnemy(scene, def.x, def.y);
       }
       throw new Error(`Unhandled enemy kind: ${def.kind}`);
     });

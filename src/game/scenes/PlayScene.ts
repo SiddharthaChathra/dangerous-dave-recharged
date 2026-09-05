@@ -7,6 +7,7 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { EnemyBase } from '../entities/EnemyBase';
+import { ChaseEnemy } from '../entities/ChaseEnemy';
 import { Checkpoint } from '../entities/Checkpoint';
 import { gameEvents } from '../core/EventBus';
 import { createLivesState, applyDamage, setCheckpoint, type LivesState } from '../../utils/livesReducer';
@@ -98,6 +99,9 @@ export class PlayScene extends Phaser.Scene {
       mp.update(delta);
     }
     for (const enemy of this.enemies) {
+      if (enemy instanceof ChaseEnemy) {
+        enemy.setPlayerX(this.player.sprite.x);
+      }
       const distanceToPlayer = Phaser.Math.Distance.Between(
         enemy.sprite.x,
         enemy.sprite.y,
