@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { CameraController } from '../systems/CameraController';
 import { LevelLoader } from '../levels/LevelLoader';
-import { level001 } from '../levels/level001';
+import { getLevel } from '../levels/registry';
+import type { LevelData } from '../levels/types';
 import { buildParallaxLayers } from '../levels/parallax';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
@@ -16,6 +17,7 @@ import { createScoreState, collectGem, collectSecret, type ScoreState } from '..
 import type { MoveInput } from '../../utils/physics';
 
 export class PlayScene extends Phaser.Scene {
+  private level!: LevelData;
   private player!: Player;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private movingPlatforms: MovingPlatform[] = [];
@@ -23,6 +25,7 @@ export class PlayScene extends Phaser.Scene {
   private enemies: EnemyBase[] = [];
   private checkpoints: Checkpoint[] = [];
   private collectibles: Collectible[] = [];
+  private goalZone!: Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
   private cameraController!: CameraController;
   private livesState!: LivesState;
   private scoreState!: ScoreState;
@@ -30,19 +33,25 @@ export class PlayScene extends Phaser.Scene {
   private invulnerabilityWindowMs = 1000;
   private elapsedSeconds = 0;
   private timerAccumulator = 0;
+  private levelCompleted = false;
 
   constructor() {
     super('Play');
+  }
+
+  init(data: { levelId: string }): void {
+    this.level = getLevel(data?.levelId);
+    this.levelCompleted = false;
   }
 
   create(): void {
     this.physics.world.gravity.y = 0; // gravity is applied manually in Player.update
 
     // Build parallax background layers first so they render behind everything
-    buildParallaxLayers(this, level001.backgroundPalette, level001.widthPx, level001.heightPx);
+    buildParallaxLayers(this, this.level.backgroundPalette, this.level.widthPx, this.level.heightPx);
 
     // Load and build the level, creating platforms, player, and moving platforms
-    const levelBuild = LevelLoader.buildInScene(this, level001);
+    const levelBuild = LevelLoader.buildInScene(this, this.level);
     this.player = levelBuild.player;
     this.movingPlatforms = levelBuild.movingPlatforms;
     this.hazards = levelBuild.hazards;
@@ -63,8 +72,8 @@ export class PlayScene extends Phaser.Scene {
     this.cameraController.attach(this.cameras.main, this.player.sprite, {
       x: 0,
       y: 0,
-      width: level001.widthPx,
-      height: level001.heightPx,
+      width: this.level.widthPx,
+      height: this.level.heightPx,
     });
 
     // Set up hazard overlaps with invulnerability window
@@ -109,7 +118,17 @@ export class PlayScene extends Phaser.Scene {
       });
     }
 
+    // Set up an invisible goal zone the player overlaps to complete the level
+    const goalRect = this.add.rectangle(this.level.goal.x, this.level.goal.y, 40, 80, 0x22c55e, 0);
+    this.physics.add.existing(goalRect, true);
+    this.goalZone = goalRect as unknown as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
+    this.physics.add.overlap(this.player.sprite, this.goalZone, () => {
+      this.handleLevelComplete();
+    });
+
     this.cursors = this.input.keyboard!.createCursorKeys();
+
+    gameEvents.emit('game:started', { levelId: this.level.id });
   }
 
   update(_time: number, delta: number): void {
@@ -142,9 +161,21 @@ export class PlayScene extends Phaser.Scene {
       this.timerAccumulator -= 1000;
       this.elapsedSeconds += 1;
       gameEvents.emit('timer:tick', { seconds: this.elapsedSeconds });
-      const progress = this.player.sprite.x / level001.widthPx;
+      const progress = this.player.sprite.x / this.level.widthPx;
       gameEvents.emit('level:progress', { percent: progress });
     }
+  }
+
+  private handleLevelComplete(): void {
+    if (this.levelCompleted || this.livesState.isGameOver) return;
+    this.levelCompleted = true;
+    gameEvents.emit('level:complete', {
+      levelId: this.level.id,
+      score: this.scoreState.score,
+      timeSeconds: this.elapsedSeconds,
+      collected: this.scoreState.collected,
+      total: this.scoreState.total,
+    });
   }
 
   private handleDamageSource(): void {
@@ -163,7 +194,7 @@ export class PlayScene extends Phaser.Scene {
       if (respawnPos) {
         this.player.setPosition(respawnPos.sprite.x, respawnPos.sprite.y);
       } else {
-        this.player.setPosition(level001.playerStart.x, level001.playerStart.y);
+        this.player.setPosition(this.level.playerStart.x, this.level.playerStart.y);
       }
 
       // Check if game is over
