@@ -750,7 +750,11 @@ export class Player {
     this.sprite.setTint(0x4ade80);
     this.sprite.setDamping(false);
     this.sprite.setMaxVelocity(PHYSICS.MAX_RUN_SPEED, PHYSICS.MAX_FALL_SPEED);
-    this.sprite.body.setSize(20, 30);
+    // Arcade Body.setSize() treats its args as "source" dims and re-multiplies by the
+    // GameObject's current scale every frame (Phaser Body.js setSize/preUpdate) — since
+    // setDisplaySize(24,32) on the 4x4 '__WHITE' texture already set scale to (6,8), the
+    // desired final body size must be pre-divided by that scale or it balloons to 120x240.
+    (this.sprite.body as Phaser.Physics.Arcade.Body).setSize(20 / this.sprite.scaleX, 30 / this.sprite.scaleY);
   }
 
   get isOnGround(): boolean {
@@ -2734,7 +2738,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 - [ ] **Step 1: Add falling-platform support to the level type and loader**
 
-Modify `src/game/levels/types.ts`: add `export interface FallingPlatformDef extends PlatformDef { fallDelayMs: number; }` and a `fallingPlatforms: FallingPlatformDef[]` field to `LevelData` (also add it to Level 1's export and its `LevelLoader.test.ts` fixture as an empty array so existing tests keep passing).
+Modify `src/game/levels/types.ts`: add `export interface FallingPlatformDef extends PlatformDef { fallDelayMs: number; }` and a `fallingPlatforms: FallingPlatformDef[]` field to `LevelData`. Also add `'fallingPlatforms'` to `LevelLoader.ts`'s `REQUIRED_FIELDS` array (Task 6) so validation stays in sync with the type, and add it to Level 1's export and its `LevelLoader.test.ts` fixture as an empty array so existing tests keep passing.
 
 `src/game/entities/FallingPlatform.ts`:
 ```ts
@@ -3493,8 +3497,18 @@ export type PlayerAnimState = 'idle' | 'run' | 'jump' | 'fall' | 'hurt' | 'death
 export class PlayerAnimator {
   private runCycleSeconds = 0;
   private currentState: PlayerAnimState = 'idle';
+  // Captured at construction time (after Player's constructor calls setDisplaySize(24,32) on
+  // the 4x4 '__WHITE' texture, giving scale (6,8)) — every animation-driven scale below must
+  // be relative to THIS base, not an assumed base of (1,1), or the sprite shrinks to its raw
+  // 4x4 texture size the instant any animation state runs (a real bug found via live testing:
+  // the player became a near-invisible dot as soon as it went idle or ran).
+  private readonly baseScaleX: number;
+  private readonly baseScaleY: number;
 
-  constructor(private readonly scene: Phaser.Scene, private readonly sprite: Phaser.Physics.Arcade.Sprite) {}
+  constructor(private readonly scene: Phaser.Scene, private readonly sprite: Phaser.Physics.Arcade.Sprite) {
+    this.baseScaleX = sprite.scaleX;
+    this.baseScaleY = sprite.scaleY;
+  }
 
   update(dtMs: number, state: PlayerAnimState): void {
     if (state !== this.currentState) this.onStateEnter(state);
@@ -3503,20 +3517,26 @@ export class PlayerAnimator {
     if (state === 'run') {
       this.runCycleSeconds += dtMs / 1000;
       const bob = Math.abs(Math.sin(this.runCycleSeconds * 10)) * 3;
-      this.sprite.setScale(1, 1 - bob * 0.01);
-      this.sprite.y -= 0; // bob is visual-only via scale, position stays physics-driven
+      this.sprite.setScale(this.baseScaleX, this.baseScaleY * (1 - bob * 0.01));
     } else if (state === 'idle') {
-      this.sprite.setScale(1, 1);
+      this.sprite.setScale(this.baseScaleX, this.baseScaleY);
     }
   }
 
   private onStateEnter(state: PlayerAnimState): void {
     switch (state) {
       case 'jump':
-        this.scene.tweens.add({ targets: this.sprite, scaleX: 0.8, scaleY: 1.2, duration: 120, yoyo: true, ease: 'Quad.Out' });
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX: this.baseScaleX * 0.8,
+          scaleY: this.baseScaleY * 1.2,
+          duration: 120,
+          yoyo: true,
+          ease: 'Quad.Out',
+        });
         break;
       case 'fall':
-        this.sprite.setScale(1.05, 0.95);
+        this.sprite.setScale(this.baseScaleX * 1.05, this.baseScaleY * 0.95);
         break;
       case 'hurt':
         this.scene.tweens.add({
