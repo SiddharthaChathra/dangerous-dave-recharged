@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { LevelData } from './types';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
+import { FallingPlatform } from '../entities/FallingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { Checkpoint } from '../entities/Checkpoint';
 import { Collectible } from '../entities/Collectible';
@@ -12,7 +13,7 @@ import { ChaseEnemy } from '../entities/ChaseEnemy';
 
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
-  'platforms', 'movingPlatforms', 'hazards', 'enemies', 'collectibles', 'checkpoints',
+  'platforms', 'movingPlatforms', 'fallingPlatforms', 'hazards', 'enemies', 'collectibles', 'checkpoints',
   'goal', 'backgroundPalette',
 ];
 
@@ -20,6 +21,7 @@ export interface LevelBuildResult {
   player: Player;
   staticGroup: Phaser.Physics.Arcade.StaticGroup;
   movingPlatforms: MovingPlatform[];
+  fallingPlatforms: FallingPlatform[];
   hazards: Hazard[];
   enemies: EnemyBase[];
   checkpoints: Checkpoint[];
@@ -56,6 +58,8 @@ export class LevelLoader {
       (def) => new MovingPlatform(scene, def.x, def.y, def.width, def.rangePx, def.speedPxPerSec),
     );
 
+    const fallingPlatforms = level.fallingPlatforms.map((def) => new FallingPlatform(scene, def));
+
     const hazards = level.hazards.map((def) => new Hazard(scene, def));
     const checkpoints = level.checkpoints.map((def) => new Checkpoint(scene, def));
     const collectibles = level.collectibles.map((def) => new Collectible(scene, def));
@@ -78,6 +82,6 @@ export class LevelLoader {
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, hazards, enemies, checkpoints, collectibles, totalCollectibles, level };
+    return { player, staticGroup, movingPlatforms, fallingPlatforms, hazards, enemies, checkpoints, collectibles, totalCollectibles, level };
   }
 }

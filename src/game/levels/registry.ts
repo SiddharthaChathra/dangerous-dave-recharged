@@ -1,5 +1,6 @@
 import type { LevelData } from './types';
 import { level001 } from './level001';
+import { level002 } from './level002';
 
 /**
  * Single source of truth for available levels, keyed by level id.
@@ -8,6 +9,7 @@ import { level001 } from './level001';
  */
 export const LEVELS: Record<string, LevelData> = {
   level001,
+  level002,
 };
 
 export const DEFAULT_LEVEL_ID = 'level001';
@@ -24,6 +26,7 @@ export function getLevel(levelId: string | undefined): LevelData {
  */
 const NEXT_LEVEL_ID: Record<string, string | null> = {
   level001: 'level002',
+  level002: 'level003',
 };
 
 export function getNextLevelId(levelId: string): string | null {

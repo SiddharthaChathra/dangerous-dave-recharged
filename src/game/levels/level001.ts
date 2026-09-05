@@ -15,6 +15,7 @@ export const level001: LevelData = {
     { x: 1500, y: 500, width: 900, height: 40 },
   ],
   movingPlatforms: [],
+  fallingPlatforms: [],
   hazards: [
     { x: 1700, y: 480, width: 32, height: 20, kind: 'spike' },
     { x: 1900, y: 480, width: 32, height: 20, kind: 'spike' },

@@ -12,6 +12,7 @@ const validLevel: LevelData = {
   groundY: 500,
   platforms: [{ x: 0, y: 500, width: 1000, height: 40 }],
   movingPlatforms: [],
+  fallingPlatforms: [],
   hazards: [],
   enemies: [],
   collectibles: [{ x: 200, y: 460, kind: 'gem' }],

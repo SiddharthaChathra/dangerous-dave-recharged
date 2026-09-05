@@ -6,6 +6,7 @@ import type { LevelData } from '../levels/types';
 import { buildParallaxLayers } from '../levels/parallax';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
+import { FallingPlatform } from '../entities/FallingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { EnemyBase } from '../entities/EnemyBase';
 import { ChaseEnemy } from '../entities/ChaseEnemy';
@@ -21,6 +22,7 @@ export class PlayScene extends Phaser.Scene {
   private player!: Player;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private movingPlatforms: MovingPlatform[] = [];
+  private fallingPlatforms: FallingPlatform[] = [];
   private hazards: Hazard[] = [];
   private enemies: EnemyBase[] = [];
   private checkpoints: Checkpoint[] = [];
@@ -56,6 +58,7 @@ export class PlayScene extends Phaser.Scene {
     const levelBuild = LevelLoader.buildInScene(this, this.level);
     this.player = levelBuild.player;
     this.movingPlatforms = levelBuild.movingPlatforms;
+    this.fallingPlatforms = levelBuild.fallingPlatforms;
     this.hazards = levelBuild.hazards;
     this.enemies = levelBuild.enemies;
     this.checkpoints = levelBuild.checkpoints;
@@ -82,6 +85,15 @@ export class PlayScene extends Phaser.Scene {
       width: this.level.widthPx,
       height: this.level.heightPx,
     });
+
+    // Set up falling platform colliders to trigger on player contact
+    for (const fallingPlatform of this.fallingPlatforms) {
+      this.physics.add.collider(this.player.sprite, fallingPlatform.sprite, () => {
+        if (this.player.sprite.body?.touching.down) {
+          fallingPlatform.trigger(this);
+        }
+      });
+    }
 
     // Set up hazard overlaps with invulnerability window
     for (const hazard of this.hazards) {

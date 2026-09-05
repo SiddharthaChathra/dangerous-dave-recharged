@@ -15,6 +15,10 @@ export interface MovingPlatformDef extends PlatformDef {
   speedPxPerSec: number;
 }
 
+export interface FallingPlatformDef extends PlatformDef {
+  fallDelayMs: number;
+}
+
 export interface HazardDef {
   x: number;
   y: number;
@@ -54,6 +58,7 @@ export interface LevelData {
   groundY: number;
   platforms: PlatformDef[];
   movingPlatforms: MovingPlatformDef[];
+  fallingPlatforms: FallingPlatformDef[];
   hazards: HazardDef[];
   enemies: EnemyDef[];
   collectibles: CollectibleDef[];
