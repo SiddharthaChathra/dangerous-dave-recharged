@@ -60,8 +60,8 @@ describe('updateJumpAssist', () => {
   });
 
   it('allows a jump shortly after leaving the ground (coyote time)', () => {
-    const airborneJustLeft = updateJumpAssist(freshState, false, false, 0, PHYSICS).state;
-    // still within COYOTE_MS window
+    const grounded = updateJumpAssist(freshState, true, false, 16, PHYSICS).state; // seed: was on ground
+    const airborneJustLeft = updateJumpAssist(grounded, false, false, 0, PHYSICS).state; // left ground this frame
     const { shouldJump } = updateJumpAssist(airborneJustLeft, false, true, 50, PHYSICS);
     expect(shouldJump).toBe(true);
   });

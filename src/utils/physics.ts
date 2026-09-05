@@ -48,19 +48,7 @@ export function updateJumpAssist(
   dtMs: number,
   constants: PhysicsConstants,
 ): { state: JumpAssistState; shouldJump: boolean } {
-  let coyoteRemainingMs: number;
-  if (onGround) {
-    coyoteRemainingMs = constants.COYOTE_MS;
-  } else {
-    // If airborne and in fresh/initial state (just transitioned from ground), grant coyote time
-    // But only if not currently trying to jump (which should buffer instead)
-    if (!jumpPressed && state.coyoteRemainingMs === 0 && state.bufferRemainingMs === 0) {
-      coyoteRemainingMs = constants.COYOTE_MS;
-    } else {
-      coyoteRemainingMs = Math.max(0, state.coyoteRemainingMs - dtMs);
-    }
-  }
-
+  const coyoteRemainingMs = onGround ? constants.COYOTE_MS : Math.max(0, state.coyoteRemainingMs - dtMs);
   let bufferRemainingMs = Math.max(0, state.bufferRemainingMs - dtMs);
   if (jumpPressed) bufferRemainingMs = constants.JUMP_BUFFER_MS;
 
