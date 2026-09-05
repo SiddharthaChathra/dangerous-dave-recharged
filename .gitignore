@@ -6,3 +6,6 @@ dist
 playwright-report
 test-results
 *.local
+
+# Visual QA screenshots are regenerated on demand by tools/*.mjs
+qa-shots/

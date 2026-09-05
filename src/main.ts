@@ -57,6 +57,17 @@ let touchControls: TouchControls | null = null;
 function showScreen(screen: { destroy(): void } | null): void {
   currentScreen?.destroy();
   currentScreen = screen;
+  syncModalState();
+}
+
+/**
+ * Marks the document while any modal screen (menu / pause / game over / level complete /
+ * settings) is open. CSS uses this to make the HUD and touch controls inert, so overlay
+ * chrome can never intercept a click aimed at a menu button.
+ */
+function syncModalState(): void {
+  const open = currentScreen !== null || settingsPanel !== null;
+  document.body.classList.toggle('ddr-modal-open', open);
 }
 
 gameEvents.on('game:started', ({ levelId }) => {
@@ -139,9 +150,13 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
 gameEvents.on('settings:open', () => {
   // Defensive: avoid double-mounting if Settings is somehow opened while already open.
   settingsPanel?.destroy();
-  const panel = new SettingsPanel(gameEvents, loadSave(window.localStorage).settings);
+  const panel = new SettingsPanel(gameEvents, loadSave(window.localStorage).settings, () => {
+    settingsPanel = null;
+    syncModalState();
+  });
   panel.mount(uiRoot);
   settingsPanel = panel;
+  syncModalState();
 });
 
 gameEvents.on('settings:changed', (settings) => {

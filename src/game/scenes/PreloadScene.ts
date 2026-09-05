@@ -363,44 +363,87 @@ export class PreloadScene extends Phaser.Scene {
     const groundCanvas = this.textures.createCanvas('platform_tile', s, s)!;
     const gctx = groundCanvas.getContext();
     
-    // Base block
-    gctx.fillStyle = '#18181b';
+    // Lit body: brightest just under the trim, falling into shadow at the base.
+    // A flat fill read as a black checkerboard against the new parallax sky; the
+    // gradient plus grain gives the floor volume and keeps the player readable on it.
+    const bodyGrad = gctx.createLinearGradient(0, 0, 0, s);
+    bodyGrad.addColorStop(0, '#3a4453');
+    bodyGrad.addColorStop(0.28, '#252c38');
+    bodyGrad.addColorStop(1, '#12151c');
+    gctx.fillStyle = bodyGrad;
     gctx.fillRect(0, 0, s, s);
-    
-    // Top neon trim (sci-fi floor look)
-    gctx.fillStyle = '#00f0ff';
-    gctx.fillRect(0, 0, s, 4);
-    
-    // Panel lines
-    gctx.strokeStyle = '#27272a';
+
+    // Fine grain so large floors don't look like flat vector blocks.
+    for (let i = 0; i < 140; i++) {
+      const gx = Math.random() * s;
+      const gy = Math.random() * s;
+      const bright = Math.random() > 0.5;
+      gctx.fillStyle = bright ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.16)';
+      gctx.fillRect(gx, gy, 2, 2);
+    }
+
+    // Top neon trim with a soft bloom bleeding down into the body.
+    const trimGlow = gctx.createLinearGradient(0, 0, 0, 18);
+    trimGlow.addColorStop(0, 'rgba(0,240,255,0.55)');
+    trimGlow.addColorStop(1, 'rgba(0,240,255,0)');
+    gctx.fillStyle = trimGlow;
+    gctx.fillRect(0, 0, s, 18);
+    gctx.fillStyle = '#7df4ff';
+    gctx.fillRect(0, 0, s, 3);
+    gctx.fillStyle = '#00c8dd';
+    gctx.fillRect(0, 3, s, 2);
+
+    // Recessed panel seams.
+    gctx.strokeStyle = 'rgba(0,0,0,0.45)';
     gctx.lineWidth = 2;
     gctx.beginPath();
-    gctx.moveTo(s/2, 4); gctx.lineTo(s/2, s);
-    gctx.moveTo(0, s/2); gctx.lineTo(s, s/2);
+    gctx.moveTo(s / 2, 6); gctx.lineTo(s / 2, s);
+    gctx.moveTo(0, s / 2); gctx.lineTo(s, s / 2);
     gctx.stroke();
-    
-    // Inner bevel
-    gctx.strokeStyle = '#3f3f46';
-    gctx.strokeRect(4, 8, s/2 - 8, s/2 - 12);
-    gctx.strokeRect(s/2 + 4, 8, s/2 - 8, s/2 - 12);
+    gctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    gctx.lineWidth = 1;
+    gctx.beginPath();
+    gctx.moveTo(s / 2 + 2, 6); gctx.lineTo(s / 2 + 2, s);
+    gctx.moveTo(0, s / 2 + 2); gctx.lineTo(s, s / 2 + 2);
+    gctx.stroke();
+
+    // Rivets catch the trim light.
+    gctx.fillStyle = 'rgba(160,200,220,0.35)';
+    for (const [rx, ry] of [[10, 14], [s - 10, 14], [10, s - 12], [s - 10, s - 12]]) {
+      gctx.beginPath();
+      gctx.arc(rx, ry, 2, 0, Math.PI * 2);
+      gctx.fill();
+    }
     groundCanvas.refresh();
 
     // Moving platform
     const mpCanvas = this.textures.createCanvas('moving_platform', 200, 32)!;
     const mpctx = mpCanvas.getContext();
+    // Matches the static floor's lit-deck language (cyan trim, shadowed underside) so
+    // moving platforms read as the same technology rather than a stray grey slab.
     const mpGrad = mpctx.createLinearGradient(0, 0, 0, 32);
-    mpGrad.addColorStop(0, '#52525b');
-    mpGrad.addColorStop(1, '#27272a');
+    mpGrad.addColorStop(0, '#3a4453');
+    mpGrad.addColorStop(0.35, '#252c38');
+    mpGrad.addColorStop(1, '#10131a');
     mpctx.fillStyle = mpGrad;
-    mpctx.roundRect(0, 0, 200, 32, 8);
+    mpctx.beginPath();
+    mpctx.roundRect(0, 0, 200, 32, 6);
     mpctx.fill();
-    
+
+    const mpTrim = mpctx.createLinearGradient(0, 0, 0, 12);
+    mpTrim.addColorStop(0, 'rgba(0,240,255,0.5)');
+    mpTrim.addColorStop(1, 'rgba(0,240,255,0)');
+    mpctx.fillStyle = mpTrim;
+    mpctx.fillRect(4, 0, 192, 12);
+    mpctx.fillStyle = '#7df4ff';
+    mpctx.fillRect(4, 0, 192, 3);
+
     // Hover engines glowing below
     mpctx.shadowColor = '#00f0ff';
     mpctx.shadowBlur = 15;
     mpctx.fillStyle = '#00f0ff';
-    mpctx.beginPath(); mpctx.arc(40, 28, 6, 0, Math.PI*2); mpctx.fill();
-    mpctx.beginPath(); mpctx.arc(160, 28, 6, 0, Math.PI*2); mpctx.fill();
+    mpctx.beginPath(); mpctx.arc(40, 28, 5, 0, Math.PI*2); mpctx.fill();
+    mpctx.beginPath(); mpctx.arc(160, 28, 5, 0, Math.PI*2); mpctx.fill();
     mpCanvas.refresh();
 
     // Falling platform

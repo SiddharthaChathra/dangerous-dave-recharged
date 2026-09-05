@@ -5,7 +5,12 @@ import { audioSystem } from '../game/core/audio';
 export class SettingsPanel {
   private container: HTMLElement | null = null;
 
-  constructor(private readonly bus: EventBus<GameEvents>, private readonly initial: SaveData['settings']) {}
+  constructor(
+    private readonly bus: EventBus<GameEvents>,
+    private readonly initial: SaveData['settings'],
+    /** Invoked after the panel closes itself, so the opener can drop its reference. */
+    private readonly onClose?: () => void,
+  ) {}
 
   mount(root: HTMLElement): void {
     const container = document.createElement('div');
@@ -65,7 +70,9 @@ export class SettingsPanel {
   }
 
   destroy(): void {
+    const wasMounted = this.container !== null;
     this.container?.remove();
     this.container = null;
+    if (wasMounted) this.onClose?.();
   }
 }

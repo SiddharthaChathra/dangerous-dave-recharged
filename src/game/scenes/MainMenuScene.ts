@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { buildParallaxLayers } from '../levels/parallax';
+import { buildParallaxLayers, type ParallaxController } from '../levels/parallax';
 
 /**
  * Cinematic animated background scene behind the DOM MainMenu.
@@ -8,7 +8,7 @@ import { buildParallaxLayers } from '../levels/parallax';
 export class MainMenuScene extends Phaser.Scene {
   private cameraScrollX = 0;
   private heroSprite!: Phaser.GameObjects.Sprite;
-  private environmentLayers: any[] = [];
+  private environment!: ParallaxController;
   private particles!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
@@ -19,7 +19,7 @@ export class MainMenuScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     // Use the striking 'neon' palette for the main menu hero shot
-    this.environmentLayers = buildParallaxLayers(this, 'neon', width * 4, height);
+    this.environment = buildParallaxLayers(this, 'neon', width * 4, height);
 
     // Create cinematic lighting (vignette + glows)
     const vignette = this.add.graphics();
@@ -42,9 +42,10 @@ export class MainMenuScene extends Phaser.Scene {
     });
     this.particles.setScrollFactor(0).setDepth(10);
 
-    // Place the Hero Character
-    // We position it slightly left of center to balance the UI which usually sits in the middle/right
-    this.heroSprite = this.add.sprite(width * 0.4, height - 120, 'player_idle');
+    // Place the hero on the right-hand third. The DOM menu panel (title, PLAY/SETTINGS and
+    // the level grid) occupies the left side, and the hero previously sat on top of those
+    // controls — keeping it right of them lets both read clearly.
+    this.heroSprite = this.add.sprite(width * 0.78, height - 96, 'player_idle');
     this.heroSprite.setOrigin(0.5, 1);
     this.heroSprite.setScale(2.5); // make character large and heroic
     this.heroSprite.setScrollFactor(0); // Lock to screen
@@ -62,7 +63,7 @@ export class MainMenuScene extends Phaser.Scene {
     });
 
     // Hero glow
-    const heroGlow = this.add.sprite(width * 0.4, height - 150, 'particle');
+    const heroGlow = this.add.sprite(width * 0.78, height - 128, 'particle');
     heroGlow.setScale(20);
     heroGlow.setTint(0x00f0ff);
     heroGlow.setAlpha(0.15);
@@ -83,16 +84,12 @@ export class MainMenuScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     const dt = delta / 1000;
-    
-    // Pan the camera endlessly to the right to create cinematic motion
+
+    // Pan endlessly to the right for cinematic motion. The environment layers wrap on
+    // their own (screen-fixed TileSprites), so this can grow without bound and never
+    // needs the old reset hack.
     this.cameraScrollX += 40 * dt;
     this.cameras.main.scrollX = this.cameraScrollX;
-
-    // We rely on parallax logic wrapping internally if needed,
-    // but building very wide parallax layers works for menus usually.
-    // If it runs too long, reset to create infinite loop
-    if (this.cameraScrollX > this.scale.width * 2) {
-      this.cameraScrollX = 0;
-    }
+    this.environment.update(this.cameras.main, delta);
   }
 }

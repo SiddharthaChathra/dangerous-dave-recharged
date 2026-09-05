@@ -9,6 +9,7 @@
   justify-content: space-between;
   align-items: flex-end;
   padding: 0 var(--ddr-space-6) calc(var(--ddr-space-6) + env(safe-area-inset-bottom));
+  /* Below .screen overlays (200) so pause/game-over buttons stay clickable on touch. */
   z-index: 100;
   pointer-events: none; /* Let clicks pass through empty areas */
 }
@@ -70,4 +71,11 @@
   .touch-controls {
     display: flex;
   }
+}
+
+/* Hide the on-screen controls whenever a modal screen is open, so they can neither
+   overlap nor intercept clicks on menu buttons. */
+body.ddr-modal-open .touch-controls {
+  opacity: 0;
+  pointer-events: none;
 }

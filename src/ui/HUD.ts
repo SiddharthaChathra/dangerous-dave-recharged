@@ -33,12 +33,12 @@ export class HUD {
           </div>
         </div>
         <div class="lives-wrap">
-          <span style="color: var(--ddr-danger);">❤</span> <span id="hud-lives">3</span>
+          <span style="color: var(--ddr-danger);">❤</span> <span id="hud-lives" data-hud="lives">3</span>
         </div>
       </div>
 
       <div class="hud-center">
-        <div class="level-name" id="hud-level-name">TRAINING GROUNDS</div>
+        <div class="level-name" id="hud-level-name" data-hud="level-name">TRAINING GROUNDS</div>
         <div class="progress-track">
           <div class="progress-fill" id="hud-progress-fill"></div>
         </div>
@@ -48,18 +48,18 @@ export class HUD {
         <div class="stat-group hud-panel">
           <div class="stat-item">
             <span class="stat-label">SCORE</span>
-            <span class="stat-value" id="hud-score">000000</span>
+            <span class="stat-value" id="hud-score" data-hud="score">000000</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">GEMS</span>
-            <span class="stat-value" id="hud-gems">0/0</span>
+            <span class="stat-value" id="hud-gems" data-hud="collectibles">0/0</span>
           </div>
           <div class="stat-item">
             <span class="stat-label">TIME</span>
-            <span class="stat-value" id="hud-timer">00:00</span>
+            <span class="stat-value" id="hud-timer" data-hud="timer">00:00</span>
           </div>
         </div>
-        <button class="hud-pause-btn" id="hud-pause" aria-label="Pause game">⏸</button>
+        <button class="hud-pause-btn" id="hud-pause" data-hud="pause-button" aria-label="Pause game">⏸</button>
       </div>
     `;
     root.appendChild(container);

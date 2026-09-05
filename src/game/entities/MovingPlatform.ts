@@ -8,9 +8,10 @@ export class MovingPlatform {
   private direction = 1;
 
   constructor(scene: Phaser.Scene, x: number, y: number, widthPx: number, rangePx: number, speedPxPerSec: number) {
-    this.sprite = scene.physics.add.sprite(x, y, '__WHITE');
+    // Use the generated hover-deck texture rather than a tinted white pixel, so moving
+    // platforms share the lit-trim look of the static floor.
+    this.sprite = scene.physics.add.sprite(x, y, 'moving_platform');
     this.sprite.setDisplaySize(widthPx, 16);
-    this.sprite.setTint(0x94a3b8);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setImmovable(true);
     this.startX = x;

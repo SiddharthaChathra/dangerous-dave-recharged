@@ -10,13 +10,23 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: var(--ddr-space-6);
-  z-index: 100;
+  /* Must stay BELOW .screen overlays (z-index 200 in menus.css): the HUD's interactive
+     panels have pointer-events:auto, so a higher stacking order made them swallow clicks
+     meant for the pause / game-over / level-complete buttons. */
+  z-index: 40;
   transition: opacity var(--ddr-trans-slow);
 }
 
 .hud--hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* While any modal screen is open the HUD is inert, so it can never intercept a click
+   aimed at a menu button even if a future change raises its stacking order again. */
+body.ddr-modal-open .hud,
+body.ddr-modal-open .hud * {
+  pointer-events: none !important;
 }
 
 /* Base style for HUD panels */
@@ -130,16 +140,25 @@
 .hud-center {
   position: absolute;
   left: 50%;
+  /* Sits just under the top row so it can never collide with the left health panel or
+     the right stat panel, which previously overlapped the level name. */
+  top: calc(var(--ddr-space-6) + 92px);
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--ddr-space-1);
+  max-width: min(42vw, 340px);
 }
 
 .level-name {
   font-family: var(--ddr-font-display);
-  font-size: 1.2rem;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  opacity: 0.85;
   font-weight: 900;
   letter-spacing: 0.15em;
   text-transform: uppercase;
@@ -244,4 +263,22 @@
   .stat-group { gap: var(--ddr-space-3); }
   .stat-value { font-size: 1.2rem; }
   .avatar { width: 36px; height: 36px; }
+}
+
+/* Phone portrait: at ~390px the left panel plus the three stats overflowed the
+   viewport and clipped the TIME readout entirely. Shrink both panels rather than
+   dropping a stat — all three are needed while playing. */
+@media (max-width: 520px) {
+  .hud {
+    padding: var(--ddr-space-2);
+    gap: var(--ddr-space-2);
+  }
+  .hud-left { padding: var(--ddr-space-2) var(--ddr-space-3); }
+  .health-label { font-size: 0.55rem; }
+  .health-track { width: 64px; }
+  .avatar { width: 28px; height: 28px; }
+  .stat-group { gap: var(--ddr-space-2); }
+  .stat-label { font-size: 0.5rem; letter-spacing: 0.05em; }
+  .stat-value { font-size: 0.95rem; }
+  .hud-pause-btn { width: 36px; height: 36px; }
 }

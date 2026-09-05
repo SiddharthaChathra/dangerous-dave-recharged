@@ -4,8 +4,11 @@ export interface LivesState {
   isGameOver: boolean;
 }
 
+/** Lives the player starts a level with; also the denominator for the HUD health bar. */
+export const STARTING_LIVES = 3;
+
 export function createLivesState(): LivesState {
-  return { lives: 3, checkpointId: null, isGameOver: false };
+  return { lives: STARTING_LIVES, checkpointId: null, isGameOver: false };
 }
 
 export function applyDamage(state: LivesState): LivesState {

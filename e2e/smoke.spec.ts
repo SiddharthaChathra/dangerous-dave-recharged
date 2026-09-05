@@ -8,9 +8,13 @@ test('full happy-path: menu -> play -> move -> jump -> pause -> resume -> comple
   });
 
   await page.goto('/');
-  await expect(page.getByText('Dangerous Dave: Recharged')).toBeVisible();
+  // The redesigned menu sets the title as a stacked wordmark plus a separate
+  // "RECHARGED" line, so match the wordmark rather than the old single string.
+  await expect(page.getByText('Dangerous', { exact: false }).first()).toBeVisible();
 
-  await page.getByRole('button', { name: 'Play' }).click();
+  // Level cards are also role="button" with "Play <name>" labels, so target the
+  // primary action by its data hook rather than by accessible name.
+  await page.locator('[data-menu="play"]').click();
   await expect(page.locator('[data-hud="score"]')).toBeVisible();
 
   // Exercise movement/jump via real keyboard events against the canvas.

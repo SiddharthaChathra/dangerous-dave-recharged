@@ -8,7 +8,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  /* Above the HUD (40) and the touch controls (100) so modal buttons always receive
+     clicks — the HUD used to sit on top and swallow them. */
+  z-index: 200;
   /* Soft cinematic fade-in */
   animation: cinematicFadeIn 600ms var(--ddr-ease-out) both;
 }

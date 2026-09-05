@@ -39,7 +39,8 @@ export abstract class EnemyBase {
     
     // Animate state transitions (visual cues)
     if (this.context.state !== oldState) {
-      if (this.context.state === 'chase' || this.context.state === 'alert') {
+      // 'chase' is the alert state in the FSM (see enemyFsm.ts's EnemyState union).
+      if (this.context.state === 'chase') {
         // Pop scale when alerted
         this.scene.tweens.add({
           targets: this.sprite,
