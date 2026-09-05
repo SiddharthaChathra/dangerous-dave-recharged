@@ -28,6 +28,8 @@ export class PlayScene extends Phaser.Scene {
   private scoreState!: ScoreState;
   private lastDamageTime = 0;
   private invulnerabilityWindowMs = 1000;
+  private elapsedSeconds = 0;
+  private timerAccumulator = 0;
 
   constructor() {
     super('Play');
@@ -132,6 +134,16 @@ export class PlayScene extends Phaser.Scene {
         this.player.sprite.y,
       );
       enemy.tick(delta, distanceToPlayer);
+    }
+
+    // Accumulate time and emit timer/progress events once per second
+    this.timerAccumulator += delta;
+    if (this.timerAccumulator >= 1000) {
+      this.timerAccumulator -= 1000;
+      this.elapsedSeconds += 1;
+      gameEvents.emit('timer:tick', { seconds: this.elapsedSeconds });
+      const progress = this.player.sprite.x / level001.widthPx;
+      gameEvents.emit('level:progress', { percent: progress });
     }
   }
 
