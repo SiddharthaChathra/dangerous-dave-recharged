@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
+import { CameraController } from '../systems/CameraController';
 import type { MoveInput } from '../../utils/physics';
 
 export class PlayScene extends Phaser.Scene {
@@ -9,6 +10,7 @@ export class PlayScene extends Phaser.Scene {
   private ground!: Phaser.Physics.Arcade.StaticGroup;
   private movingPlatform!: MovingPlatform;
   private movingPlatformGroup!: Phaser.Physics.Arcade.Group;
+  private cameraController!: CameraController;
 
   constructor() {
     super('Play');
@@ -17,7 +19,7 @@ export class PlayScene extends Phaser.Scene {
   create(): void {
     this.physics.world.gravity.y = 0; // gravity is applied manually in Player.update
     this.ground = this.physics.add.staticGroup();
-    const groundRect = this.add.rectangle(480, 520, 960, 40, 0x333344);
+    const groundRect = this.add.rectangle(960, 520, 1920, 40, 0x333344);
     this.physics.add.existing(groundRect, true);
     this.ground.add(groundRect);
 
@@ -28,6 +30,9 @@ export class PlayScene extends Phaser.Scene {
     this.player = new Player(this, 100, 400);
     this.physics.add.collider(this.player.sprite, this.ground);
     this.physics.add.collider(this.player.sprite, this.movingPlatformGroup);
+
+    this.cameraController = new CameraController();
+    this.cameraController.attach(this.cameras.main, this.player.sprite, { x: 0, y: 0, width: 1920, height: 540 });
 
     this.cursors = this.input.keyboard!.createCursorKeys();
   }
