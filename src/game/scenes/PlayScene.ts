@@ -67,6 +67,11 @@ export class PlayScene extends Phaser.Scene {
     // Initialize score state
     this.scoreState = createScoreState(levelBuild.totalCollectibles);
 
+    // Emit initial state for HUD display
+    gameEvents.emit('lives:changed', { lives: this.livesState.lives });
+    gameEvents.emit('score:changed', { score: this.scoreState.score });
+    gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
+
     // Attach camera controller with bounds matching level dimensions
     this.cameraController = new CameraController();
     this.cameraController.attach(this.cameras.main, this.player.sprite, {
