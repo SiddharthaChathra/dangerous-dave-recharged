@@ -208,21 +208,31 @@ check('key gate re-arms on the new level', (await page.locator('[data-hud="key"]
 // ---------------------------------------------------------------- DEATH & LIVES
 const deathLevel = await g("game.scene.getScene('Play').level.id");
 
-/** Drops the player out of the world and waits for the run to actually react. */
+/**
+ * Drops the player out of the world and waits for the run to actually react.
+ *
+ * The teleport is re-applied on every poll: a level that has just restarted gives the player a
+ * short invulnerability window, so a single drop can be silently ignored and the whole death
+ * sequence then stalls.
+ */
 async function loseALife() {
   const before = Number(await hud('lives'));
-  await page.evaluate(() => {
-    const p = window.__ddrDebugGame.scene.getScene('Play');
-    p.player.sprite.setPosition(p.player.sprite.x, p.level.heightPx + 400);
-  });
-  for (let i = 0; i < 30; i++) {
-    await run(300);
+  const drop = () =>
+    page.evaluate(() => {
+      const p = window.__ddrDebugGame.scene.getScene('Play');
+      if (p.scene.isActive() && p.transition === 'playing') {
+        p.player.sprite.setPosition(p.player.sprite.x, p.level.heightPx + 400);
+      }
+    });
+  for (let i = 0; i < 40; i++) {
+    await drop();
+    await run(250);
     if ((await page.locator('[data-gameover="retry"]').count()) > 0) return 'gameover';
     if (Number(await hud('lives')) < before) break;
   }
   // Two clocks now matter: the life-lost card runs on a real timer, while game:over is fired
   // by a scene timer that only advances when the loop runs. Drive both.
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 40; i++) {
     await run(250);
     await wait(200);
     if ((await page.locator('[data-gameover="retry"]').count()) > 0) return 'gameover';
