@@ -128,12 +128,6 @@ export class LevelKey {
     });
   }
 
-  /** Re-resolves the key's art for a presentation mode. Visual only — never touches the body. */
-  refreshSkin(): void {
-    const next = resolveTextureKey(KEY_TEXTURE, getVisualMode(), (k) => this.scene.textures.exists(k));
-    if (this.sprite.texture.key !== next) this.sprite.setTexture(next);
-  }
-
   get isCollected(): boolean {
     return this.collected;
   }

@@ -502,6 +502,10 @@ export class PlayScene extends Phaser.Scene {
     for (const collectible of this.collectibles) registerSprite(collectible.sprite);
     for (const pickup of this.weaponPickups) registerSprite(pickup.sprite);
     registerSprite(this.goalZone);
+    // The key is a world object like any other: without this, toggling the visual mode
+    // mid-level leaves the one pickup the level cannot be finished without still drawn in
+    // the other mode's art.
+    registerSprite(this.levelKey.sprite);
 
     // Apply immediately: a level entered while classic mode is already active must start skinned.
     this.skinner.applyMode(getVisualMode());

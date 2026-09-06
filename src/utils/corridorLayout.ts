@@ -87,3 +87,60 @@ export function corridorLayout(width: number, height: number): CorridorLayout {
 export function walkDurationMs(distance: number, speed = WALK_SPEED_PX_PER_SEC): number {
   return clamp((distance / speed) * 1000, MIN_WALK_MS, MAX_WALK_MS);
 }
+
+/* ------------------------------------------------------------------ */
+/*  PACING                                                            */
+/* ------------------------------------------------------------------ */
+
+/** He opens the door of the level he just cleared and steps out of the light. */
+export const LEFT_DOOR_OPEN_MS = 620;
+/** A held beat in the doorway before he sets off. */
+export const STEP_OUT_MS = 340;
+/** The destination door opening once he arrives. */
+export const RIGHT_DOOR_OPEN_MS = 300;
+/** Walking into the doorway and out of sight. */
+export const ENTER_MS = 720;
+/**
+ * How long after the natural end the backstop fires. Long enough that a slow frame cannot
+ * trip it, short enough that a genuinely stuck beat is not a visible hang.
+ */
+export const FAILSAFE_MARGIN_MS = 1800;
+
+export interface CorridorTimeline {
+  leftDoorOpenMs: number;
+  stepOutMs: number;
+  walkMs: number;
+  rightDoorOpenMs: number;
+  enterMs: number;
+  /** When he starts walking. */
+  walkStartsAtMs: number;
+  /** When the last beat finishes, if nothing goes wrong. */
+  naturalEndMs: number;
+  /** The backstop that ends the scene regardless. Always after `naturalEndMs`. */
+  failsafeMs: number;
+}
+
+/**
+ * The corridor's beats, laid end to end.
+ *
+ * Kept here rather than as loose constants in the scene so the one thing that must never be
+ * wrong is checkable: the failsafe has to fire *after* the choreography would naturally
+ * finish. If it ever drifts in front, it stops being a backstop and quietly becomes the normal
+ * exit — cutting the walk short on every level, on every playthrough, with nothing to see in
+ * the logs.
+ */
+export function corridorTimeline(walkDistance: number): CorridorTimeline {
+  const walkMs = walkDurationMs(walkDistance);
+  const walkStartsAtMs = LEFT_DOOR_OPEN_MS + STEP_OUT_MS;
+  const naturalEndMs = walkStartsAtMs + walkMs + RIGHT_DOOR_OPEN_MS + ENTER_MS;
+  return {
+    leftDoorOpenMs: LEFT_DOOR_OPEN_MS,
+    stepOutMs: STEP_OUT_MS,
+    walkMs,
+    rightDoorOpenMs: RIGHT_DOOR_OPEN_MS,
+    enterMs: ENTER_MS,
+    walkStartsAtMs,
+    naturalEndMs,
+    failsafeMs: naturalEndMs + FAILSAFE_MARGIN_MS,
+  };
+}

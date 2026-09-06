@@ -6,7 +6,11 @@ import { resolveTextureKey } from '../systems/VisualSkinner';
 import { getSelectedCharacterId } from '../characters/selection';
 import { ensureObjectiveTextures } from '../systems/WeaponPlaceholders';
 import { CorridorWalker } from '../entities/CorridorWalker';
-import { corridorLayout, walkDurationMs, type CorridorLayout } from '../../utils/corridorLayout';
+import {
+  corridorLayout,
+  corridorTimeline,
+  type CorridorLayout,
+} from '../../utils/corridorLayout';
 
 export interface LevelTransitionData {
   levelId: string;
@@ -27,15 +31,6 @@ export interface LevelTransitionData {
   gemsTotal: number;
   timeSeconds: number;
 }
-
-/** Beat lengths, in ms. The walk itself is sized from the corridor — see `walkDurationMs`. */
-const LEFT_DOOR_OPEN_MS = 620;
-/** How long he stands in the doorway before setting off. */
-const STEP_OUT_MS = 340;
-/** The right-hand door swinging open once he arrives. */
-const RIGHT_DOOR_OPEN_MS = 300;
-/** Walking into the doorway and out of sight. */
-const ENTER_MS = 720;
 
 /** Palette per presentation mode. Structure is identical; only the skin changes. */
 interface CorridorSkin {
@@ -595,7 +590,9 @@ export class LevelTransitionScene extends Phaser.Scene {
     if (!walker) return;
 
     const [title, subtitle, progress, stats] = text;
-    const walkMs = walkDurationMs(this.layout.walkDistance);
+    // Every beat comes from one place, so the failsafe can be proved to sit behind the end of
+    // the choreography rather than in front of it — see `corridorTimeline`.
+    const beats = corridorTimeline(this.layout.walkDistance);
 
     // A gentle push in and drift across the walk. Subtle by design: enough to feel like a
     // camera, not enough to be noticed as one.
@@ -603,10 +600,10 @@ export class LevelTransitionScene extends Phaser.Scene {
     this.cameras.main.setScroll(-5, 0);
 
     // 1. The door he just came through opens, and he steps out of the light.
-    leftDoor.open(this, LEFT_DOOR_OPEN_MS);
+    leftDoor.open(this, beats.leftDoorOpenMs);
     audioSystem.playSfx('checkpoint');
 
-    this.time.delayedCall(LEFT_DOOR_OPEN_MS * 0.45, () => {
+    this.time.delayedCall(beats.leftDoorOpenMs * 0.45, () => {
       if (this.finished) return;
       this.tweens.add({ targets: walker.root, alpha: 1, duration: 260, ease: 'Sine.easeOut' });
     });
@@ -614,7 +611,7 @@ export class LevelTransitionScene extends Phaser.Scene {
     // 2. He walks. The tween owns his position; his cadence is derived from how fast he is
     //    actually moving each frame (see `update`), so the easing at either end slows his
     //    legs down with him instead of letting the feet skate.
-    this.time.delayedCall(LEFT_DOOR_OPEN_MS + STEP_OUT_MS, () => {
+    this.time.delayedCall(beats.walkStartsAtMs, () => {
       if (this.finished) return;
       walker.setWalking(true);
 
@@ -622,14 +619,14 @@ export class LevelTransitionScene extends Phaser.Scene {
         targets: this.cameras.main,
         zoom: 1.02,
         scrollX: 5,
-        duration: walkMs,
+        duration: beats.walkMs,
         ease: 'Sine.easeInOut',
       });
 
       this.tweens.add({
         targets: walker.root,
         x: this.layout.walkEndX,
-        duration: walkMs,
+        duration: beats.walkMs,
         ease: 'Sine.easeInOut',
         onComplete: () => this.enterNextDoor(),
       });
@@ -644,10 +641,7 @@ export class LevelTransitionScene extends Phaser.Scene {
       this.revealMessage([title, subtitle, progress, stats]);
     });
 
-    this.failsafe = this.time.delayedCall(
-      LEFT_DOOR_OPEN_MS + STEP_OUT_MS + walkMs + RIGHT_DOOR_OPEN_MS + ENTER_MS + 1800,
-      () => this.finish(),
-    );
+    this.failsafe = this.time.delayedCall(beats.failsafeMs, () => this.finish());
   }
 
   private revealMessage(text: Phaser.GameObjects.GameObject[]): void {
@@ -680,10 +674,11 @@ export class LevelTransitionScene extends Phaser.Scene {
     const walker = this.walker;
     if (!walker) return;
 
-    this.rightDoor?.open(this, RIGHT_DOOR_OPEN_MS);
+    const beats = corridorTimeline(this.layout.walkDistance);
+    this.rightDoor?.open(this, beats.rightDoorOpenMs);
     audioSystem.playSfx('levelComplete');
 
-    this.time.delayedCall(RIGHT_DOOR_OPEN_MS, () => {
+    this.time.delayedCall(beats.rightDoorOpenMs, () => {
       if (this.finished) return;
       // Still walking, still on his feet: he goes *through* the doorway and the light takes
       // him, which is the beat that says "into the next level" rather than "scene over".
@@ -693,7 +688,7 @@ export class LevelTransitionScene extends Phaser.Scene {
         alpha: 0,
         scaleX: 0.86,
         scaleY: 0.86,
-        duration: ENTER_MS,
+        duration: beats.enterMs,
         ease: 'Sine.easeIn',
         onComplete: () => this.finish(),
       });

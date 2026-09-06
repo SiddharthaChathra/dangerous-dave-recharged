@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   corridorLayout,
+  corridorTimeline,
   walkDurationMs,
   MIN_WALK_MS,
   MAX_WALK_MS,
@@ -78,5 +79,47 @@ describe('walk duration', () => {
   it('never drags past the maximum, however wide the screen', () => {
     expect(walkDurationMs(100000)).toBe(MAX_WALK_MS);
     expect(MAX_WALK_MS).toBeLessThanOrEqual(4000);
+  });
+});
+
+describe('corridor timeline', () => {
+  const timeline = corridorTimeline(corridorLayout(960, 540).walkDistance);
+
+  it('opens the door and lets him step out before he starts walking', () => {
+    expect(timeline.walkStartsAtMs).toBe(timeline.leftDoorOpenMs + timeline.stepOutMs);
+    expect(timeline.walkStartsAtMs).toBeGreaterThan(0);
+  });
+
+  it('ends only after every beat has played', () => {
+    expect(timeline.naturalEndMs).toBe(
+      timeline.leftDoorOpenMs +
+        timeline.stepOutMs +
+        timeline.walkMs +
+        timeline.rightDoorOpenMs +
+        timeline.enterMs,
+    );
+  });
+
+  it('never lets the failsafe cut the scene short', () => {
+    // The failsafe exists so a broken beat cannot wedge the game. If it were ever scheduled
+    // before the choreography naturally finishes it would instead become the normal path, and
+    // the player would be yanked out of the corridor mid-walk every single level.
+    expect(timeline.failsafeMs).toBeGreaterThan(timeline.naturalEndMs);
+  });
+
+  it('keeps the failsafe close enough behind to be a backstop, not a hang', () => {
+    expect(timeline.failsafeMs - timeline.naturalEndMs).toBeLessThanOrEqual(2500);
+  });
+
+  it('is a moment to enjoy rather than a wait', () => {
+    expect(timeline.naturalEndMs).toBeGreaterThan(4000);
+    expect(timeline.naturalEndMs).toBeLessThan(7000);
+  });
+
+  it('holds that guarantee on any screen width', () => {
+    for (const width of [640, 800, 960, 1280, 1920, 2560]) {
+      const t = corridorTimeline(corridorLayout(width, 540).walkDistance);
+      expect(t.failsafeMs, `width ${width}`).toBeGreaterThan(t.naturalEndMs);
+    }
   });
 });

@@ -19,6 +19,25 @@ and visual-mode code never reads or writes gameplay state.
 
 ## 0. Status — read this first
 
+### ⚠️ Changed since you last read this
+
+Two things moved under you. Both are merged, tested and playable; the details are further down.
+
+1. **The trophy is now a key.** `LevelData.trophy` → `LevelData.key`, `Trophy` → `LevelKey`,
+   `trophy:collected` → `key:collected`, and the textures are `level_key` /
+   `classic__level_key`. Any `trophy` art in `PreloadScene` is now dead code. There is a new
+   HUD element, `.hud-key`, driven by a `data-key-state` attribute.
+2. **The corridor was rebuilt.** It now has two captioned doors and an articulated character
+   who actually walks between them, because the player textures have no walk frames to play.
+   New files: `corridorLayout.ts`, `walkCycle.ts`, `CorridorWalker.ts`, `walkerPalette.ts`.
+   **`walkerPalette.ts` is yours** — it is where the figure's colours live.
+
+Also new: a `level:started` event, because `game:started` carries sentinel ids that name no
+level (this caused a real HUD bug — see the warning in the key section); a `ddr-cutscene` body
+class that hides persistent chrome during the corridor; and a `footstep` sound.
+
+---
+
 **Everything you asked for in your plan is already built, tested and merged.** Please do not
 re-implement it; it will conflict.
 
@@ -194,43 +213,78 @@ Resolution cascades: character-classic → character-modern → Dave-classic →
 character with no art yet renders as Dave rather than a missing-texture box, and you can add
 sprites one character (or one mode) at a time.
 
-### Trophy, locked door and fire/lava — ready for your art
+### The level key, the locked door, and fire/lava — ready for your art
 
 The mechanics are built and tested. Placeholder art exists for all of it (same rule as the
 weapons: generated only when the key is absent, so defining these in `PreloadScene` replaces
 them and the generator becomes a no-op).
 
+> **The trophy is gone.** The pickup that unlocks the exit is now a **key**, in name and in
+> art. `LevelData.trophy` is `LevelData.key`, the entity is `LevelKey`, and the texture keys
+> changed. If you have `trophy` / `classic__trophy` art in `PreloadScene` it is no longer used
+> by anything — author `level_key` instead, or delete it.
+
 | Key | What it is | Placeholder size |
 | --- | --- | --- |
-| `trophy` / `classic__trophy` | The level key — collect it to unlock the exit | 26×30 |
-| `fire` / `classic__fire` | Fire hazard | 64×40 (tiled) |
-| `lava` / `classic__lava` | Lava hazard | 64×40 (tiled) |
+| `level_key` / `classic__level_key` | The level key — collect it to unlock the exit | 40x22 |
+| `goal_door_locked` / `classic__goal_door_locked` | Derived from `goal_door` by stamping a padlock and keyhole onto it. Define either key yourself to override that. | matches `goal_door` |
+| `fire` / `classic__fire` | Fire hazard | 64x40 (tiled) |
+| `lava` / `classic__lava` | Lava hazard | 64x40 (tiled) |
+
+The key's idle presentation is deliberately louder than any other pickup — it hovers, turns
+about its shaft, pulses a halo and throws an occasional glint. That behaviour lives in
+`LevelKey` and is yours to tune; just keep it recognisably a key, and keep it readable against
+a busy background. It is the one object a stuck player needs to find.
 
 New events to hook feedback onto:
 
 | Event | Payload | When |
 | --- | --- | --- |
-| `trophy:collected` | `{ x, y }` | Trophy taken; the exit is now unlocked |
-| `door:locked` | `{ x, y }` | Player reached the exit without the trophy (throttled to 1/sec) |
+| `key:collected` | `{ x, y }` | Key taken (renamed from `trophy:collected`) |
+| `door:locked` | `{ x, y }` | Player reached the exit without the key (throttled to 1/sec) |
 | `door:opening` | `{ levelId }` | Unlocked door opening, player stepping through |
+| `level:started` | `{ levelId }` | A level is actually running — see the warning below |
+
+**Use `level:started`, never `game:started`, to learn which level is being played.**
+`game:started` carries sentinels that `main.ts` resolves privately — `'next-level'`,
+`'restart'`, `'restart-new-game'`, `'menu'` — so `LEVELS[levelId]` on that payload is
+`undefined` for anything but a fresh start from the menu. It fails silently, which is exactly
+how the HUD came to display level 1's name for an entire campaign.
+
+The collection beat is ordered on purpose: key taken, burst, the key flies to the HUD, and only
+then the door unlocks. The player has to *watch the key cause the unlock*, so please keep the
+door's change last if you restyle it.
+
+**HUD key indicator.** `.hud-key` in `hud.css` carries a `data-key-state` of `required` or
+`acquired`; the HUD sets it from `key:collected` and resets it on every level start. The styling
+is a plain, token-based baseline — restyle it freely, but drive it off that attribute rather
+than adding a second source of truth.
 
 The door sequence already animates Dave into the doorway and shuts the door before
 `level:complete` fires (~700ms), so a completion is never an instant cut. Feel free to add to
 that with the events above — just don't make it much longer; it sits between the player and
 their reward.
 
-⚠️ **Hazard art must stay within its declared rectangle.** The damage box is deliberately inset
+**Hazard art must stay within its declared rectangle.** The damage box is deliberately inset
 from the drawing (18% at the sides, 30% off the top) so a graze doesn't kill. Flames that
 overhang the rectangle would look dangerous in places that are actually safe — which reads as a
 bug to the player even though collision is correct.
 
 ### The between-levels corridor (`LevelTransitionScene`)
 
-A shared file: **logic owns the lifecycle, you own everything you can see.**
+A shared file: **logic owns the lifecycle and the composition, you own the surface.**
 
-Restyle freely — background, brick art, typography, character animation, VFX, a progress
-indicator, audio cues. `init()` hands you everything you need, so the scene never has to derive
-progression itself:
+The scene is a real corridor with **two doors**: the level just cleared on the left, the next
+one on the right, each captioned from campaign position. The character walks between them.
+
+```
+[LEVEL 3 - CLEARED] |]   ->   walks   ->   [| [LEVEL 4 ->]
+
+                       GOOD WORK!
+                    ONLY 6 MORE TO GO.
+```
+
+`init()` hands you everything you need, so the scene never derives progression itself:
 
 ```ts
 { levelId, title, subtitle, isVictory,
@@ -238,25 +292,61 @@ progression itself:
   score, gemsCollected, gemsTotal, timeSeconds }
 ```
 
+**Where the pieces live**
+
+| File | What it owns | Yours to change? |
+| --- | --- | --- |
+| `utils/corridorLayout.ts` | Door positions, floor/ceiling lines, walker size, message baseline, beat timings | No — its guarantees are unit-tested |
+| `systems/walkCycle.ts` | The gait: limb angles, stride length, cadence | No — the anti-slide law lives here |
+| `entities/CorridorWalker.ts` | The rig that draws the figure | Shape and detail yes; not the pose maths |
+| `systems/walkerPalette.ts` | Per-character, per-mode colours for the rig | **Yes — this is the one you'll want** |
+| `scenes/LevelTransitionScene.ts` | The `SKINS` palette, lighting, particles, typography | Yes, everything visual |
+
+**Why the character is built from rectangles rather than the usual sprite.** The player textures
+are one flattened canvas per state — there are no walk frames and no separable limbs, so a
+character crossing the corridor as a sprite would be sliding, not walking. The rig rebuilds the
+figure so it can be posed. If you ever author real walk-cycle *frames*, say so and we can swap
+the rig for them.
+
+**Do not set the walker's cadence directly.** `CorridorWalker.update()` takes the speed it is
+actually moving at and derives step frequency from the stride the legs really open. That
+derivation is the only reason the feet stay planted instead of skating, and it holds through the
+easing at both ends of the walk. Changing the walk's *duration* is fine — the gait follows.
+
 Textures to author (placeholders exist for each, replaced by defining the key in
 `PreloadScene`): `transition_brick` / `classic__transition_brick`, plus any new keys you add.
-The scene already resolves art through the normal cascade, so it inherits the active visual
-mode and the selected character with no mode-specific logic.
+The scene resolves art through the normal cascade, so it inherits the active visual mode and the
+selected character with no mode-specific logic.
 
-⚠️ **Three things must survive a redesign:**
+**Both modes must keep the same structure** — left door, walking character, right door, message
+below. Classic and modern differ only in `SKINS` (palette, lighting, particles). That is why the
+skin is a lookup table rather than branches through the layout code: if you find yourself adding
+`if (isClassic)` around *geometry*, the two structures have diverged and one of them is no
+longer the corridor.
 
-1. **`finish()` must still be reachable from every path and run exactly once.** Animation
+**The chrome hides itself.** `main.ts` puts `ddr-cutscene` on `<body>` for the duration, which
+clears the visual-mode toggle and the touch pad; the HUD hides itself on `level:complete`. If you
+add persistent on-screen furniture, hide it under that class too.
+
+**Three things must survive a redesign** — all three are locked by
+`tests/levelTransitionContract.test.ts`, which reads this scene's source:
+
+1. **`finish()` must still be reachable from every path and run exactly once.** The animation
    completing, the player skipping, and the failsafe timer all funnel through it. If a new tween
    becomes the thing that ends the scene, its `onComplete` must call `finish()` — otherwise the
    game wedges in the interstitial with no way out.
 2. **Keep the skip.** Any key or pointer press must abort straight to the next screen. A player
    replaying a level for the tenth time should never be held in a cutscene.
-3. **Keep the failsafe timer.** It is the backstop for a missing texture, an interrupted tween
-   or a backgrounded tab. Don't remove it because "the animation always finishes" — that is
-   exactly the assumption it exists to survive.
+3. **Keep the failsafe timer.** It is the backstop for a missing texture, an interrupted tween or
+   a backgrounded tab. Don't remove it because "the animation always finishes" — that is exactly
+   the assumption it exists to survive. Take its timing from `corridorTimeline()`: a failsafe
+   scheduled *before* the natural end stops being a backstop and silently becomes the normal
+   exit, cutting the walk short on every level.
 
 A note on audio: please don't reuse `playSfx('jump')` for a text pulse. Reusing a movement cue
-for UI muddles what a sound *means* — add a dedicated name to `SFX_PROFILE` instead.
+for UI muddles what a sound *means* — add a dedicated name to `SFX_PROFILE` instead. There
+are now `textReveal` and `footstep` alongside the originals; `footstep` is mixed deliberately
+quiet, because the corridor walk lands one every third of a second.
 
 ### Rendering a character preview in UI
 
@@ -349,6 +439,7 @@ internals.**
   `theme.ts` — markup/appearance
 - `src/game/scenes/PreloadScene.ts` — all procedural art, including new `classic__*` textures
 - `src/game/systems/ParticleFX.ts`, `src/game/levels/parallax.ts` — effects and backgrounds
+- `src/game/systems/walkerPalette.ts` — the corridor walker's colours, per character per mode
 - Tween/easing/visual timing inside `PlayerAnimator.ts` and `EnemyBase.ts`
 
 **Constraint:** keep the `data-*` attributes and element ids already present — tests and game
@@ -366,7 +457,12 @@ them; don't remove them.
   `Collectible.ts`, `Hazard.ts`, `MovingPlatform.ts`, `FallingPlatform.ts`
 - `src/game/levels/level00*.ts`, `types.ts`, `LevelLoader.ts`, `registry.ts` — **level layout
   and hazard placement are gameplay, not decoration**
-- `src/utils/**` — physics, scoring, lives
+- `src/game/entities/LevelKey.ts` — the key's gating state (its *look* is yours; the
+  `collect()` contract is not)
+- `src/game/systems/walkCycle.ts` — the gait maths, and the stride-to-cadence law that stops
+  the corridor walker's feet sliding
+- `src/utils/**` — physics, scoring, lives, and `corridorLayout.ts` (corridor geometry and
+  beat timings, whose guarantees are unit-tested)
 - `src/main.ts` — wiring and run state
 
 ### Shared, with a boundary
@@ -376,6 +472,13 @@ them; don't remove them.
   something calls `toggleVisualMode()`.
 - `src/game/entities/PlayerAnimator.ts` — logic owns texture-key resolution and the state
   machine; Gemini owns tweens, timings and easing.
+- `src/game/scenes/LevelTransitionScene.ts` — logic owns the lifecycle (the three invariants under
+  "The between-levels corridor") and the composition it takes from `corridorLayout`; Gemini owns the `SKINS`
+  palette, lighting, particles and typography.
+- `src/game/entities/CorridorWalker.ts` — logic owns the pose maths and the cadence derivation;
+  Gemini owns the figure's shape, proportions and detail.
+- `src/ui/HUD.ts` — as ever, appearance is yours; the `data-key-state` attribute on `.hud-key`
+  is the contract the game drives, so keep it.
 
 ## 7. Classic mode design intent
 
@@ -411,4 +514,12 @@ Found while regression-testing your Step 2 work. All are visual — none block g
 - [ ] Both modes are readable: platforms, hazards, enemies and collectibles are distinguishable
 - [ ] Every `gameEvents.on(...)` has a matching unsubscribe on teardown
 - [ ] No gameplay values (coordinates, sizes, speeds, hitboxes) changed
+- [ ] The key still reads as a key, and still stands out from the gems
+- [ ] The corridor still ends: it can be skipped with a key *and* a pointer, and the failsafe
+      still fires — `tests/levelTransitionContract.test.ts` checks all three
+- [ ] The corridor's two doors are still distinguishable, and the walker's feet do not slide
 - [ ] `npm run typecheck && npm run lint && npm run test` all pass
+
+**Please run all three commands, not just the tests.** Typecheck and lint are what CI runs, they
+take a few seconds, and unused-variable errors have broken the build three times now while the
+test suite stayed green.
