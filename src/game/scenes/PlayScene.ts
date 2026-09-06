@@ -25,6 +25,7 @@ import { createLivesState, applyDamage, STARTING_LIVES, type LivesState } from '
 import { createScoreState, collectGem, collectSecret, defeatEnemy, ENEMY_DEFEAT_SCORE, GEM_SCORE, SECRET_SCORE, type ScoreState } from '../../utils/scoring';
 import { createWeaponState, pickUpWeapon, canFire, projectileVelocityX, type WeaponState } from '../../utils/weapon';
 import { clampDelta, hasFallenOutOfBounds, type MoveInput } from '../../utils/physics';
+import { canTakeDamage, canTriggerExit, isPlayable, type TransitionState } from '../../utils/transitionState';
 import { PHYSICS } from '../core/constants';
 
 /**
@@ -65,11 +66,12 @@ export class PlayScene extends Phaser.Scene {
   private timerAccumulator = 0;
   private dustAccumulator = 0;
   private wasOnGround = false;
-  private levelCompleted = false;
-  /** True from the moment a death starts until the scene is torn down, freezing the run. */
-  private dying = false;
-  /** True once the exit sequence starts, so it can never run twice. */
-  private doorSequenceStarted = false;
+  /**
+   * The level's lifecycle as one value. Everything that must not happen twice — starting the
+   * exit, taking damage, running the death sequence — is gated on this rather than on a set of
+   * booleans that could disagree with each other.
+   */
+  private transition: TransitionState = 'playing';
   /** Lives/score this level attempt begins with, carried in from the run by main.ts. */
   private startingLives = STARTING_LIVES;
   private startingScore = 0;
@@ -90,9 +92,7 @@ export class PlayScene extends Phaser.Scene {
 
   init(data: { levelId: string; lives?: number; score?: number }): void {
     this.level = getLevel(data?.levelId);
-    this.levelCompleted = false;
-    this.dying = false;
-    this.doorSequenceStarted = false;
+    this.transition = 'playing';
     this.startingLives = data?.lives ?? STARTING_LIVES;
     this.startingScore = data?.score ?? 0;
     this.elapsedSeconds = 0;
@@ -189,7 +189,7 @@ export class PlayScene extends Phaser.Scene {
     // Set up hazard overlaps with invulnerability window
     for (const hazard of this.hazards) {
       this.physics.add.overlap(this.player.sprite, hazard.sprite, () => {
-        if (this.livesState.isGameOver) return;
+        if (!canTakeDamage(this.transition)) return;
         this.handleDamageSource();
       });
     }
@@ -197,7 +197,7 @@ export class PlayScene extends Phaser.Scene {
     // Set up enemy overlaps with invulnerability window (same damage path as hazards)
     for (const enemy of this.enemies) {
       this.physics.add.overlap(this.player.sprite, enemy.sprite, () => {
-        if (this.livesState.isGameOver) return;
+        if (!canTakeDamage(this.transition)) return;
         if (enemy.context.state === 'dead') return;
         this.handleDamageSource();
       });
@@ -235,7 +235,7 @@ export class PlayScene extends Phaser.Scene {
     // Picking up the gun arms Dave for the rest of this level attempt.
     for (const pickup of this.weaponPickups) {
       this.physics.add.overlap(this.player.sprite, pickup.sprite, () => {
-        if (this.dying || !pickup.collect()) return;
+        if (!isPlayable(this.transition) || !pickup.collect()) return;
         this.weaponState = pickUpWeapon(this.weaponState);
         gameEvents.emit('weapon:changed', { hasGun: true });
         audioSystem.playSfx('collect');
@@ -257,7 +257,7 @@ export class PlayScene extends Phaser.Scene {
 
     // The trophy is the level's key: the exit stays shut until it is collected.
     this.physics.add.overlap(this.player.sprite, this.trophy.sprite, () => {
-      if (this.dying || !this.trophy.collect()) return;
+      if (!isPlayable(this.transition) || !this.trophy.collect()) return;
       gameEvents.emit('trophy:collected', { x: this.trophy.sprite.x, y: this.trophy.sprite.y });
       // Re-key through the skinner, not setTexture: the skinner has to learn the door's new
       // base art, or the next visual-mode switch would redraw this unlocked door as locked.
@@ -323,7 +323,7 @@ export class PlayScene extends Phaser.Scene {
     // Once dead, stop simulating the player entirely: the death animation must play out
     // untouched (Player.update would otherwise overwrite it from velocity on the next frame),
     // and a dead player must not be steerable while the level restart is pending.
-    if (this.dying) return;
+    if (!isPlayable(this.transition)) return;
 
     const state = this.inputController.getState();
     if (state.pausePressed) gameEvents.emit('game:pause', {});
@@ -442,7 +442,7 @@ export class PlayScene extends Phaser.Scene {
    * can have is registered here, at creation, rather than polled per frame.
    */
   private tryFire(): void {
-    if (this.dying || this.levelCompleted) return;
+    if (!isPlayable(this.transition)) return;
     if (!canFire(this.weaponState, this.projectiles.length)) return;
 
     const facingLeft = this.player.sprite.flipX;
@@ -617,7 +617,7 @@ export class PlayScene extends Phaser.Scene {
    * is gated on game state rather than on collision geometry.
    */
   private handleGoalTouched(): void {
-    if (this.dying || this.levelCompleted || this.doorSequenceStarted) return;
+    if (!canTriggerExit(this.transition)) return;
 
     if (!this.trophy.isCollected) {
       const now = this.time.now;
@@ -641,7 +641,7 @@ export class PlayScene extends Phaser.Scene {
    * level-complete screen appears, so finishing reads as an action rather than a teleport.
    */
   private startDoorSequence(): void {
-    this.doorSequenceStarted = true;
+    this.transition = 'transitioning';
 
     const body = this.player.sprite.body as Phaser.Physics.Arcade.Body;
     this.player.sprite.setVelocity(0, 0);
@@ -675,8 +675,8 @@ export class PlayScene extends Phaser.Scene {
   }
 
   private handleLevelComplete(): void {
-    if (this.levelCompleted || this.livesState.isGameOver) return;
-    this.levelCompleted = true;
+    if (this.transition === 'completing') return;
+    this.transition = 'completing';
     gameEvents.emit('level:complete', {
       levelId: this.level.id,
       score: this.scoreState.score,
@@ -696,12 +696,12 @@ export class PlayScene extends Phaser.Scene {
    * the run); main.ts owns the transition itself, as it does for every other scene change.
    */
   private handleDamageSource(): void {
-    if (this.dying || this.levelCompleted) return;
+    if (!isPlayable(this.transition)) return;
     const now = this.time.now;
     if (now - this.lastDamageTime < this.invulnerabilityWindowMs) return;
 
     this.lastDamageTime = now;
-    this.dying = true;
+    this.transition = 'dying';
     this.livesState = applyDamage(this.livesState);
 
     gameEvents.emit('lives:changed', { lives: this.livesState.lives });

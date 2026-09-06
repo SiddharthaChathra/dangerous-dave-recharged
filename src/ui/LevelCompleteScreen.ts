@@ -9,6 +9,11 @@ export interface LevelCompleteData {
   total: number;
   rating: Rating;
   nextLevelId: string | null;
+  /**
+   * The between-levels message, in the spirit of the original's
+   * "GOOD WORK! ONLY 5 MORE TO GO." Computed from real game state, never hardcoded.
+   */
+  message: { title: string; subtitle: string; isVictory: boolean };
 }
 
 function ratingEmoji(rating: Rating): string {
@@ -29,7 +34,8 @@ export class LevelCompleteScreen {
     container.className = 'screen screen--overlay';
     container.innerHTML = `
       <div class="screen__panel">
-        <h2>🎉 Level Complete!</h2>
+        <h2 data-levelcomplete="title">${this.data.message.isVictory ? '🏆' : '🎉'} ${this.data.message.title}</h2>
+        <p class="level-complete__subtitle" data-levelcomplete="subtitle">${this.data.message.subtitle}</p>
         <div class="rating-badge rating-badge--${this.data.rating}">
           ${ratingEmoji(this.data.rating)} ${this.data.rating.toUpperCase()}
         </div>
@@ -47,8 +53,10 @@ export class LevelCompleteScreen {
             <div class="stat-card__value">${this.data.collected}/${this.data.total}</div>
           </div>
         </div>
-        <button data-levelcomplete="continue">${this.data.nextLevelId ? '▶ Next Level' : '🏠 Back to Menu'}</button>
-        ${this.data.nextLevelId ? '<button data-levelcomplete="menu" class="btn--secondary">🏠 Main Menu</button>' : ''}
+        <button data-levelcomplete="continue">${
+          this.data.nextLevelId ? '▶ Next Level' : '↺ Play Again'
+        }</button>
+        <button data-levelcomplete="menu" class="btn--secondary">🏠 Main Menu</button>
       </div>
     `;
     root.appendChild(container);
@@ -58,7 +66,9 @@ export class LevelCompleteScreen {
       audioSystem.playSfx('uiClick');
       // 'next-level' (not the raw id) so the run's remaining lives and score carry forward
       // instead of being reset the way starting a fresh level from the menu does.
-      this.bus.emit('game:started', { levelId: this.data.nextLevelId ? 'next-level' : 'menu' });
+      // 'restart-new-game' resets lives and score and returns to level 1 — a real replay,
+      // not a silent drop back to the menu.
+      this.bus.emit('game:started', { levelId: this.data.nextLevelId ? 'next-level' : 'restart-new-game' });
     });
 
     const menuBtn = container.querySelector('[data-levelcomplete="menu"]');

@@ -19,6 +19,7 @@ import { getVisualMode, setVisualMode, type VisualMode } from './game/core/visua
 import { setSelectedCharacter } from './game/characters/selection';
 import { registerPreviewTextureSource } from './game/characters/preview';
 import { computeRating } from './utils/scoring';
+import { completionMessage } from './utils/levelProgress';
 import { audioSystem } from './game/core/audio';
 import { applyTheme, applyReducedMotion, prefersReducedMotion } from './ui/theme';
 
@@ -291,6 +292,8 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
     total,
     rating,
     nextLevelId,
+    // Counted from the campaign, so it stays right if levels are ever added or removed.
+    message: completionMessage(levelId),
   });
   levelCompleteScreen.mount(uiRoot);
   showScreen(levelCompleteScreen);
