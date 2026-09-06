@@ -59,6 +59,34 @@ export function ensureObjectiveTextures(scene: Phaser.Scene): void {
     }
   }
 
+  // The between-levels corridor's brick, matching the original's bright blue passage. Kept
+  // separate from `platform_tile` so the interstitial can read boldly without changing how
+  // in-level platforms look.
+  if (!scene.textures.exists('transition_brick')) {
+    const w = 64;
+    const h = 24;
+    const canvas = scene.textures.createCanvas('transition_brick', w, h);
+    const ctx = canvas?.getContext();
+    if (ctx) {
+      ctx.fillStyle = '#0a0a2a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = '#1414ff';
+      // Offset courses, mortar lines left dark, as in the reference.
+      for (let row = 0; row < 2; row++) {
+        const offset = row % 2 === 0 ? 0 : 16;
+        for (let x = -16; x < w; x += 32) {
+          ctx.fillRect(x + offset + 1, row * 12 + 1, 30, 10);
+        }
+      }
+      ctx.fillStyle = '#4d4dff';
+      for (let row = 0; row < 2; row++) {
+        const offset = row % 2 === 0 ? 0 : 16;
+        for (let x = -16; x < w; x += 32) ctx.fillRect(x + offset + 1, row * 12 + 1, 30, 3);
+      }
+      canvas!.refresh();
+    }
+  }
+
   // Fire and lava are drawn as warm blocks; the damage box is inset by the hazard geometry.
   const hazardArt: Record<string, [string, string]> = {
     fire: ['#ff6b1a', '#ffd166'],

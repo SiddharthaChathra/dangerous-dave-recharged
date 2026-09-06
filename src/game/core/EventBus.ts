@@ -14,6 +14,21 @@ export class EventBus<Events extends Record<string, unknown> = Record<string, un
     return () => this.off(event, handler);
   }
 
+  /**
+   * Subscribes for exactly one delivery, then unsubscribes itself.
+   *
+   * Unsubscribing *before* invoking the handler matters: if the handler re-emits the same
+   * event (or triggers something that does), a self-removing listener that fired first would
+   * re-enter itself.
+   */
+  once<K extends keyof Events>(event: K, handler: Handler<Events[K]>): () => void {
+    const wrapped: Handler<Events[K]> = (payload) => {
+      this.off(event, wrapped);
+      handler(payload);
+    };
+    return this.on(event, wrapped);
+  }
+
   off<K extends keyof Events>(event: K, handler: Handler<Events[K]>): void {
     const list = this.handlers[event];
     if (!list) return;
@@ -67,6 +82,8 @@ export type GameEvents = {
   'door:locked': { x: number; y: number };
   /** The unlocked door is opening and the player is stepping through. */
   'door:opening': { levelId: string };
+  /** The between-levels corridor has finished (or was skipped). */
+  'transition:finished': { levelId: string };
   /**
    * The playable character changed. Cosmetic only — hitbox, speed, jump and damage are
    * identical for every character, so this never affects gameplay or level difficulty.

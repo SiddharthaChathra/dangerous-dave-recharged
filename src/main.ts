@@ -136,6 +136,24 @@ let runScoreAtLevelStart = 0;
 /** How long the "LIFE LOST" beat is shown before the level restarts. */
 const LIFE_LOST_MS = 850;
 
+/**
+ * Cancels the pending "corridor finished" subscription, if any.
+ *
+ * The interstitial hands off to the stats card through a one-shot listener. If the player
+ * leaves mid-corridor — quitting to the menu, or any other level start — that listener would
+ * otherwise still be waiting, and would drop a Level Complete card on top of whatever screen
+ * they went to.
+ */
+let cancelPendingTransition: (() => void) | null = null;
+
+function abortPendingTransition(game: Phaser.Game): void {
+  cancelPendingTransition?.();
+  cancelPendingTransition = null;
+  if (game.scene.getScene('LevelTransition')?.scene.isActive()) {
+    game.scene.stop('LevelTransition');
+  }
+}
+
 /** Sentinels that continue the current run rather than starting a fresh one. */
 function continuesCurrentRun(requestedLevelId: string): boolean {
   return requestedLevelId === 'restart' || requestedLevelId === 'next-level';
@@ -164,6 +182,7 @@ function syncModalState(): void {
 }
 
 gameEvents.on('game:started', ({ levelId }) => {
+  abortPendingTransition(game);
   if (levelId === 'menu') {
     touchControls?.destroy();
     touchControls = null;
@@ -285,6 +304,20 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
     bestScore: save.levels[levelId]?.bestScore ?? levelScore,
   });
 
+  // Play the between-levels corridor first: Dave walks into the next level's door, with the
+  // "GOOD WORK! ONLY N MORE TO GO." banner overhead, as in the original. The stats card follows
+  // once that finishes (or the player skips it). Progression is already persisted above, so a
+  // skipped or interrupted interstitial can never cost the player their completed level.
+  const message = completionMessage(levelId);
+  game.scene.pause('Play');
+  game.scene.start('LevelTransition', { levelId, title: message.title, subtitle: message.subtitle, isVictory: message.isVictory });
+
+  cancelPendingTransition = gameEvents.once('transition:finished', () => {
+    cancelPendingTransition = null;
+    showLevelCompleteCard();
+  });
+
+  const showLevelCompleteCard = () => {
   const levelCompleteScreen = new LevelCompleteScreen(gameEvents, {
     score,
     timeSeconds,
@@ -293,10 +326,11 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
     rating,
     nextLevelId,
     // Counted from the campaign, so it stays right if levels are ever added or removed.
-    message: completionMessage(levelId),
+    message,
   });
   levelCompleteScreen.mount(uiRoot);
   showScreen(levelCompleteScreen);
+  };
 });
 
 /**

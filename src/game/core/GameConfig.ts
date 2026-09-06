@@ -4,6 +4,7 @@ import { BootScene } from '../scenes/BootScene';
 import { PreloadScene } from '../scenes/PreloadScene';
 import { MainMenuScene } from '../scenes/MainMenuScene';
 import { PlayScene } from '../scenes/PlayScene';
+import { LevelTransitionScene } from '../scenes/LevelTransitionScene';
 
 export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
   return {
@@ -33,6 +34,6 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
-    scene: [BootScene, PreloadScene, MainMenuScene, PlayScene],
+    scene: [BootScene, PreloadScene, MainMenuScene, PlayScene, LevelTransitionScene],
   };
 }
