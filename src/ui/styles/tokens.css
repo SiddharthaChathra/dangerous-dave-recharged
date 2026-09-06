@@ -89,3 +89,41 @@
 input, textarea {
   user-select: auto;
 }
+
+/* ---- Classic Theme Overrides ---- */
+[data-visual-mode="classic"] {
+  --ddr-bg-surface: rgba(0, 0, 0, 0.95);
+  --ddr-bg-elevated: rgba(0, 0, 0, 1);
+  
+  --ddr-accent-primary: #ff3333;
+  --ddr-accent-secondary: #ffaa00;
+  --ddr-accent-tertiary: #cc0000;
+  
+  --ddr-grad-accent: linear-gradient(135deg, #ff3333, #cc0000);
+  --ddr-grad-surface: linear-gradient(180deg, #110000 0%, #000000 100%);
+  --ddr-grad-text: linear-gradient(180deg, #ffffff 0%, #ffaaaa 100%);
+  
+  --ddr-glow-primary: 0 0 10px rgba(255, 51, 51, 0.4);
+  --ddr-border-subtle: rgba(255, 51, 51, 0.3);
+  --ddr-border-accent: rgba(255, 51, 51, 0.8);
+  
+  --ddr-shadow-panel: 0 0 0 4px var(--ddr-accent-tertiary), inset 0 0 0 2px var(--ddr-accent-primary);
+  
+  /* Retro blocky fonts */
+  --ddr-font-display: 'Share Tech Mono', monospace;
+  --ddr-font-body: 'Share Tech Mono', monospace;
+  
+  /* Sharp corners */
+  --ddr-radius-sm: 0px;
+  --ddr-radius-md: 0px;
+  --ddr-radius-lg: 0px;
+  --ddr-radius-xl: 0px;
+  
+  /* Snappier transitions */
+  --ddr-ease-out: linear;
+  --ddr-ease-in-out: linear;
+  --ddr-ease-spring: linear;
+  --ddr-trans-fast: 50ms linear;
+  --ddr-trans-normal: 100ms linear;
+  --ddr-trans-slow: 150ms linear;
+}

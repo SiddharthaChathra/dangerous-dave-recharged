@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { markTutorialSeen } from '../src/game/systems/SaveSystem';
 import {
   DEFAULT_SAVE,
   loadSave,
@@ -63,5 +64,19 @@ describe('SaveSystem', () => {
     data = recordLevelResult(data, 'level001', 80, 40);
     expect(data.levels.level001.bestScore).toBe(100);
     expect(data.levels.level001.bestTimeSeconds).toBe(40);
+  });
+});
+
+describe('tutorial progress', () => {
+  it('a new player has not seen the tutorial yet', () => {
+    expect(DEFAULT_SAVE.tutorialSeen).toBe(false);
+  });
+
+  it('remembers once the tutorial has been shown, so it never nags on replays', () => {
+    const seen = markTutorialSeen(DEFAULT_SAVE);
+    expect(seen.tutorialSeen).toBe(true);
+    // Must not disturb progression.
+    expect(seen.levels).toEqual(DEFAULT_SAVE.levels);
+    expect(seen.highScore).toBe(DEFAULT_SAVE.highScore);
   });
 });

@@ -36,6 +36,24 @@ export function integrateHorizontal(
   return vx - Math.sign(vx) * decel;
 }
 
+/**
+ * Caps a per-frame delta so a stall (tab-switch, GC pause) can't produce one huge simulation
+ * step that tunnels the player/enemies through thin hazards or fast platforms in a single frame.
+ */
+export function clampDelta(deltaMs: number, maxMs: number): number {
+  return Math.min(deltaMs, maxMs);
+}
+
+/**
+ * True once the player has fallen past the level's floor by more than the margin — i.e. fell
+ * into a bottomless pit/gap rather than merely standing on ground near the bottom of the level.
+ * Levels have no world-floor collider, so without this the player falls forever off-screen and
+ * the game never registers it as a death.
+ */
+export function hasFallenOutOfBounds(playerY: number, levelHeightPx: number, marginPx: number): boolean {
+  return playerY > levelHeightPx + marginPx;
+}
+
 export function applyGravity(vy: number, dtSeconds: number, constants: PhysicsConstants): number {
   const next = vy + constants.GRAVITY * dtSeconds;
   return Math.min(next, constants.MAX_FALL_SPEED);

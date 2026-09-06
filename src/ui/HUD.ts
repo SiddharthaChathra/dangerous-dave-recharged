@@ -13,6 +13,10 @@ export class HUD {
   private levelNameEl!: HTMLElement;
   private progressFillEl!: HTMLElement;
   private leftPanelEl!: HTMLElement;
+  // Declared as real fields rather than assigned through `this as any` casts, which tripped
+  // the no-explicit-any lint rule and broke CI. Behaviour is unchanged.
+  private popupEl: HTMLElement | null = null;
+  private tutorialEl: HTMLElement | null = null;
 
   constructor(private readonly bus: EventBus<GameEvents>) {}
 
@@ -61,6 +65,17 @@ export class HUD {
         </div>
         <button class="hud-pause-btn" id="hud-pause" data-hud="pause-button" aria-label="Pause game">⏸</button>
       </div>
+
+      <div id="hud-tutorial" class="hud-tutorial hud--hidden">
+        <h3>HOW TO PLAY</h3>
+        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or <kbd>ARROWS</kbd> : Move & Jump</p>
+        <p><kbd>F</kbd> or <kbd>CTRL</kbd> : Fire Weapon</p>
+        <p><kbd>T</kbd> : Switch Visual Mode</p>
+        <p>Collect diamonds, avoid red hazards, and reach the exit!</p>
+        <button id="hud-tutorial-dismiss">GOT IT</button>
+      </div>
+
+      <div id="hud-popup" class="hud-popup hud--hidden"></div>
     `;
     root.appendChild(container);
     this.container = container;
@@ -73,6 +88,15 @@ export class HUD {
     this.levelNameEl = container.querySelector('#hud-level-name')!;
     this.progressFillEl = container.querySelector('#hud-progress-fill')!;
     this.leftPanelEl = container.querySelector('#hud-left-panel')!;
+    
+    const tutorialEl = container.querySelector('#hud-tutorial') as HTMLElement;
+    const tutorialDismiss = container.querySelector('#hud-tutorial-dismiss') as HTMLButtonElement;
+    tutorialDismiss.addEventListener('click', () => tutorialEl.classList.add('hud--hidden'));
+    
+    const popupEl = container.querySelector('#hud-popup') as HTMLElement;
+    // We'll store popupEl on the instance to use in bindEvents
+    this.popupEl = popupEl;
+    this.tutorialEl = tutorialEl;
 
     const pauseButton = container.querySelector('#hud-pause') as HTMLButtonElement;
     const pauseHandler = () => this.bus.emit('game:pause', {} as Record<string, never>);
@@ -92,6 +116,14 @@ export class HUD {
           this.triggerPop(this.scoreEl);
         }
         lastScore = score;
+      }),
+      // Secrets are announced by the game, not inferred from a score delta: +100 is also two
+      // enemy defeats in one frame, and the run score jumps on level change and rolls back on
+      // death, so a delta check would fire on all of those.
+      this.bus.on('collectible:collected', ({ kind, value }) => {
+        if (kind === 'secret') {
+          this.showPopup(`SECRET COLLECTIBLE! +${value}`, 'var(--ddr-accent-secondary)');
+        }
       }),
       this.bus.on('lives:changed', ({ lives }) => {
         this.livesEl.textContent = String(lives);
@@ -122,6 +154,7 @@ export class HUD {
       this.bus.on('game:started', ({ levelId }) => {
         if (levelId === 'menu') {
           this.hide();
+          this.tutorialEl?.classList.add('hud--hidden');
         } else {
           const level = LEVELS[levelId];
           if (level) {
@@ -132,9 +165,30 @@ export class HUD {
           this.healthFillEl.style.width = '100%';
           this.leftPanelEl.classList.remove('health-low');
           this.show();
+          
+          if (levelId === 'level001') {
+              this.tutorialEl?.classList.remove('hud--hidden');
+          } else {
+              this.tutorialEl?.classList.add('hud--hidden');
+          }
         }
+      }),
+      // Fired after progression is actually written to storage, so the message can't lie.
+      this.bus.on('progress:saved', () => {
+          this.showPopup('GAME SAVED', 'var(--ddr-success)');
       })
     );
+  }
+
+  private showPopup(text: string, color: string): void {
+      const popupEl = this.popupEl;
+      if (!popupEl) return;
+      popupEl.textContent = text;
+      popupEl.style.color = color;
+      popupEl.classList.remove('hud--hidden');
+      popupEl.style.animation = 'none';
+      void popupEl.offsetWidth; // trigger reflow
+      popupEl.style.animation = 'hud-popup-anim 2s forwards';
   }
 
   private triggerPop(element: HTMLElement): void {

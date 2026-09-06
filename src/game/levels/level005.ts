@@ -2,7 +2,7 @@ import type { LevelData } from './types';
 
 export const level005: LevelData = {
   id: 'level005',
-  name: 'Final Challenge',
+  name: 'The Gauntlet',
   widthPx: 3600,
   heightPx: 800,
   parTimeSeconds: 150,
@@ -44,20 +44,17 @@ export const level005: LevelData = {
     { x: 500, y: 640, width: 60, height: 20, fallDelayMs: 300 },
     { x: 1500, y: 600, width: 60, height: 20, fallDelayMs: 350 },
     { x: 2700, y: 480, width: 60, height: 20, fallDelayMs: 250 },
-    { x: 3200, y: 360, width: 60, height: 20, fallDelayMs: 300 },
   ],
   hazards: [
     // Spike run gauntlet
-    { x: 2000, y: 740, width: 32, height: 20, kind: 'spike' },
-    { x: 2080, y: 740, width: 32, height: 20, kind: 'spike' },
+    { x: 2000, y: 740, width: 32, height: 20, kind: 'fire' },
+    { x: 2080, y: 740, width: 32, height: 20, kind: 'lava' },
     { x: 2160, y: 740, width: 32, height: 20, kind: 'spike' },
-    { x: 2240, y: 740, width: 32, height: 20, kind: 'spike' },
-    { x: 2320, y: 740, width: 32, height: 20, kind: 'spike' },
-    { x: 2400, y: 740, width: 32, height: 20, kind: 'spike' },
+    { x: 2240, y: 740, width: 32, height: 20, kind: 'lava' },
     // Additional hazards
-    { x: 1000, y: 500, width: 32, height: 20, kind: 'spike' },
+    { x: 1000, y: 500, width: 32, height: 20, kind: 'fire' },
     { x: 1100, y: 500, width: 32, height: 20, kind: 'spike' },
-    { x: 2850, y: 260, width: 32, height: 20, kind: 'spike' },
+    { x: 2850, y: 260, width: 32, height: 20, kind: 'fire' },
   ],
   enemies: [
     // Combat arena guards
@@ -80,7 +77,7 @@ export const level005: LevelData = {
     { x: 1000, y: 480, kind: 'gem' },
     { x: 1150, y: 480, kind: 'gem' },
     { x: 1650, y: 640, kind: 'gem' },
-    { x: 2100, y: 720, kind: 'gem' },
+    
     { x: 2300, y: 720, kind: 'gem' },
     { x: 2650, y: 640, kind: 'gem' },
     { x: 2810, y: 540, kind: 'gem' },
@@ -91,11 +88,9 @@ export const level005: LevelData = {
     { x: 1250, y: 460, kind: 'secret' },
     { x: 2900, y: 240, kind: 'secret' },
   ],
-  checkpoints: [
-    { id: 'level005-cp1', x: 1000, y: 480 },
-    { id: 'level005-cp2', x: 1700, y: 720 },
-    { id: 'level005-cp3', x: 2650, y: 440 },
-  ],
+  weaponPickups: [{ x: 240, y: 722 }],
+  // Collect this before the exit door will open.
+  trophy: { x: 2100, y: 720 },
   goal: { x: 3540, y: 720 },
   backgroundPalette: 'final',
 };

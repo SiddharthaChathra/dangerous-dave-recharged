@@ -11,7 +11,7 @@ export const level002: LevelData = {
   platforms: [
     { x: 0, y: 500, width: 500, height: 40 },
     { x: 700, y: 500, width: 400, height: 40 },
-    { x: 1900, y: 500, width: 900, height: 40 },
+    { x: 1840, y: 500, width: 960, height: 40 },
   ],
   movingPlatforms: [
     { x: 550, y: 440, width: 100, height: 20, rangePx: 90, speedPxPerSec: 70 },
@@ -32,15 +32,14 @@ export const level002: LevelData = {
     { x: 200, y: 460, kind: 'gem' },
     { x: 750, y: 460, kind: 'gem' },
     { x: 1180, y: 420, kind: 'gem' },
-    { x: 1420, y: 340, kind: 'gem' },
+    
     { x: 2100, y: 460, kind: 'gem' },
     { x: 2600, y: 460, kind: 'gem' },
     { x: 1440, y: 340, kind: 'secret' },
   ],
-  checkpoints: [
-    { id: 'level002-cp1', x: 1000, y: 460 },
-    { id: 'level002-cp2', x: 1950, y: 460 },
-  ],
+  weaponPickups: [{ x: 240, y: 462 }],
+  // Collect this before the exit door will open.
+  trophy: { x: 1420, y: 340 },
   goal: { x: 2740, y: 460 },
   backgroundPalette: 'industrial',
 };

@@ -5,12 +5,19 @@ import { HUD } from './ui/HUD';
 import { MainMenu } from './ui/MainMenu';
 import { PauseMenu } from './ui/PauseMenu';
 import { GameOverScreen } from './ui/GameOverScreen';
+import { LifeLostScreen } from './ui/LifeLostScreen';
 import { LevelCompleteScreen } from './ui/LevelCompleteScreen';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { TouchControls } from './ui/TouchControls';
 import type { PlayScene } from './game/scenes/PlayScene';
-import { DEFAULT_LEVEL_ID, getLevel, getNextLevelId } from './game/levels/registry';
-import { loadSave, writeSave, updateHighScore, unlockLevel, recordLevelResult } from './game/systems/SaveSystem';
+import { DEFAULT_LEVEL_ID, LEVEL_ORDER, getLevel, getNextLevelId, resolveRequestedLevelId } from './game/levels/registry';
+import { STARTING_LIVES } from './utils/livesReducer';
+import { loadSave, writeSave, updateHighScore, unlockLevel, recordLevelResult, updateVisualMode, updateSelectedCharacter, completedLevelIds } from './game/systems/SaveSystem';
+import { VisualModeToggle } from './ui/VisualModeToggle';
+import { CharacterSelectScreen } from './ui/CharacterSelectScreen';
+import { getVisualMode, setVisualMode, type VisualMode } from './game/core/visualMode';
+import { setSelectedCharacter } from './game/characters/selection';
+import { registerPreviewTextureSource } from './game/characters/preview';
 import { computeRating } from './utils/scoring';
 import { audioSystem } from './game/core/audio';
 import { applyTheme, applyReducedMotion, prefersReducedMotion } from './ui/theme';
@@ -23,6 +30,42 @@ if (!uiRoot) throw new Error('ui-root element missing from index.html');
 
 const game = new Phaser.Game(createGameConfig(parent));
 (window as unknown as { __ddrDebugGame: Phaser.Game }).__ddrDebugGame = game;
+
+// Lets UI render character previews without importing Phaser or reaching for a debug global.
+registerPreviewTextureSource(game.textures);
+
+/**
+ * Keeps the DOM UI layer glued to the game canvas.
+ *
+ * Scale.FIT letterboxes the canvas to preserve the 16:9 playfield, so the canvas almost never
+ * fills the window — but #ui-root is a full-viewport overlay. Left unsynced, the HUD floats in
+ * the letterbox bars while the bottom-anchored controls sit *inside* the playfield covering the
+ * ground: the UI and the game end up in two different coordinate spaces.
+ *
+ * The letterbox size depends on the window's aspect ratio at runtime, so CSS alone can't
+ * express this; it has to be measured.
+ */
+function syncUiRootToCanvas(): void {
+  const canvas = game.canvas;
+  if (!canvas || !uiRoot) return;
+  const rect = canvas.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return; // not laid out yet
+  uiRoot.style.left = `${rect.left}px`;
+  uiRoot.style.top = `${rect.top}px`;
+  uiRoot.style.width = `${rect.width}px`;
+  uiRoot.style.height = `${rect.height}px`;
+  uiRoot.style.right = 'auto';
+  uiRoot.style.bottom = 'auto';
+}
+
+game.scale.on('resize', syncUiRootToCanvas);
+window.addEventListener('resize', syncUiRootToCanvas);
+// Catches letterbox changes that don't raise a window resize (fullscreen, zoom, devtools).
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(syncUiRootToCanvas).observe(parent);
+}
+// The canvas is laid out after this tick, so measure once the first frame has been painted.
+requestAnimationFrame(syncUiRootToCanvas);
 
 // Mount HUD after game is created
 const hud = new HUD(gameEvents);
@@ -38,6 +81,30 @@ audioSystem.setMuted(initialSave.settings.muted);
 applyTheme(initialSave.settings.theme);
 applyReducedMotion(initialSave.settings.reducedMotion || prefersReducedMotion());
 
+// ---- Presentation mode (CLASSIC DAVE / CURRENT VISUAL) — see THEME_INTEGRATION.md ----------
+// The single DOM hook all visual code branches on. Set before anything mounts so the first
+// paint is already in the right mode. Applied to BOTH <html> and <body>: <html> is what CSS
+// authored against `:root`/`html[data-visual-mode]` expects, and <body> lets mode selectors
+// combine with the body-level state classes (e.g. `.ddr-modal-open`) already in use here.
+function applyVisualModeToDocument(mode: VisualMode): void {
+  document.documentElement.setAttribute('data-visual-mode', mode);
+  document.body.setAttribute('data-visual-mode', mode);
+}
+
+setSelectedCharacter(initialSave.selectedCharacterId);
+setVisualMode(initialSave.visualMode);
+applyVisualModeToDocument(getVisualMode());
+
+// Character selection is cosmetic, but it must survive a reload like any other preference.
+gameEvents.on('character:changed', ({ characterId }) => {
+  writeSave(window.localStorage, updateSelectedCharacter(loadSave(window.localStorage), characterId));
+});
+
+gameEvents.on('visual-mode:changed', ({ mode }) => {
+  applyVisualModeToDocument(mode);
+  writeSave(window.localStorage, updateVisualMode(loadSave(window.localStorage), mode));
+});
+
 // The currently-mounted DOM screen (menu / pause / game-over / level-complete), if any.
 let currentScreen: { destroy(): void } | null = null;
 
@@ -45,8 +112,33 @@ let currentScreen: { destroy(): void } | null = null;
 // currentScreen swap) so the menu underneath stays visible while Settings is open.
 let settingsPanel: SettingsPanel | null = null;
 
-// The level actually running, used to resolve PauseMenu's 'restart' sentinel.
+// ---------------------------------------------------------------------------------------------
+// Run state. A "run" is one attempt at the campaign under the classic three-life rule: lives and
+// score persist across level restarts AND level transitions, and reset only when a new run
+// begins (picking a level from the menu, or Try Again after a Game Over). Keeping this here — in
+// the one place that owns scene transitions — is what stops PlayScene from silently refilling
+// lives to 3 every time it restarts.
+// ---------------------------------------------------------------------------------------------
+
+/** The level actually running, used to resolve the 'restart'/'next-level' sentinels. */
 let currentLevelId: string = DEFAULT_LEVEL_ID;
+
+/** Lives left in the current run. */
+let currentLives: number = STARTING_LIVES;
+
+/**
+ * The run's score as it stood when the current level attempt began. Restarting after a death
+ * rolls back to this, so dying can't be used to farm the same gems over and over.
+ */
+let runScoreAtLevelStart = 0;
+
+/** How long the "LIFE LOST" beat is shown before the level restarts. */
+const LIFE_LOST_MS = 850;
+
+/** Sentinels that continue the current run rather than starting a fresh one. */
+function continuesCurrentRun(requestedLevelId: string): boolean {
+  return requestedLevelId === 'restart' || requestedLevelId === 'next-level';
+}
 
 // The mounted TouchControls, bound at construction time to one Play scene's InputController.
 // A fresh InputController is created every time PlayScene.create() runs, so a fresh
@@ -66,7 +158,7 @@ function showScreen(screen: { destroy(): void } | null): void {
  * chrome can never intercept a click aimed at a menu button.
  */
 function syncModalState(): void {
-  const open = currentScreen !== null || settingsPanel !== null;
+  const open = currentScreen !== null || settingsPanel !== null || characterSelectScreen !== null;
   document.body.classList.toggle('ddr-modal-open', open);
 }
 
@@ -80,7 +172,15 @@ gameEvents.on('game:started', ({ levelId }) => {
     return;
   }
 
-  const resolvedId = levelId === 'restart' ? currentLevelId : levelId;
+  const resolvedId = resolveRequestedLevelId(levelId, currentLevelId);
+
+  // Starting a level any other way than continuing the run (menu Play, level select, or Try
+  // Again) begins a NEW run: full lives, score from zero.
+  if (!continuesCurrentRun(levelId)) {
+    currentLives = STARTING_LIVES;
+    runScoreAtLevelStart = 0;
+  }
+
   currentLevelId = resolvedId;
   showScreen(null);
 
@@ -100,7 +200,32 @@ gameEvents.on('game:started', ({ levelId }) => {
     touchControls = new TouchControls(playScene.getInputController());
     touchControls.mount(uiRoot);
   });
-  game.scene.start('Play', { levelId: resolvedId });
+  game.scene.start('Play', { levelId: resolvedId, lives: currentLives, score: runScoreAtLevelStart });
+});
+
+/**
+ * A life was lost with lives still remaining: show a brief, unmissable "LIFE LOST" beat, then
+ * restart the CURRENT level from its beginning. There is no checkpoint respawn — the whole level
+ * is re-staged, so enemies, collectibles and platforms are all back to their starting state.
+ */
+gameEvents.on('life:lost', ({ livesRemaining, levelId }) => {
+  game.scene.pause('Play');
+  currentLives = livesRemaining;
+  // Trust the scene's own level id over the tracked one. They normally agree, but if anything
+  // ever starts a level without going through this handler they would diverge — and the cost
+  // of that is sending the player to the wrong level on death, which is exactly the bug the
+  // "a death restarts the CURRENT level" rule exists to prevent.
+  currentLevelId = levelId;
+
+  const lifeLostScreen = new LifeLostScreen({ livesRemaining });
+  lifeLostScreen.mount(uiRoot);
+  showScreen(lifeLostScreen);
+
+  window.setTimeout(() => {
+    // 'restart' keeps the run going (lives already decremented, score rolled back to the value
+    // it had when this level attempt started).
+    gameEvents.emit('game:started', { levelId: 'restart' });
+  }, LIFE_LOST_MS);
 });
 
 gameEvents.on('game:pause', () => {
@@ -115,12 +240,24 @@ gameEvents.on('game:resume', () => {
   game.scene.resume('Play');
 });
 
-gameEvents.on('game:over', ({ finalScore }) => {
+gameEvents.on('game:over', ({ finalScore, levelId }) => {
+  // Without this the Play scene keeps simulating behind the Game Over screen: gravity, enemies,
+  // and the timer all keep running, and the death animation gets overwritten on the very next
+  // frame because Player.update() is still being called every frame.
+  game.scene.pause('Play');
+  currentLives = 0;
+
   const save = loadSave(window.localStorage);
   const updated = updateHighScore(save, finalScore);
   writeSave(window.localStorage, updated);
 
-  const gameOverScreen = new GameOverScreen(gameEvents, { finalScore, bestScore: updated.highScore });
+  const levelIndex = LEVEL_ORDER.indexOf(levelId);
+  const gameOverScreen = new GameOverScreen(gameEvents, {
+    finalScore,
+    bestScore: updated.highScore,
+    levelReached: getLevel(levelId).name,
+    levelNumber: levelIndex >= 0 ? levelIndex + 1 : 1,
+  });
   gameOverScreen.mount(uiRoot);
   showScreen(gameOverScreen);
 });
@@ -130,10 +267,22 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
   const rating = computeRating({ score, collected, total }, timeSeconds, level.parTimeSeconds);
   const nextLevelId = getNextLevelId(levelId);
 
+  // `score` is the run total; this level's own contribution is what belongs in its best-score
+  // record. Carry the run total forward so the next level continues from it.
+  const levelScore = Math.max(0, score - runScoreAtLevelStart);
+  runScoreAtLevelStart = score;
+
   let save = loadSave(window.localStorage);
-  save = recordLevelResult(save, levelId, score, timeSeconds);
+  save = recordLevelResult(save, levelId, levelScore, timeSeconds);
   if (nextLevelId) save = unlockLevel(save, nextLevelId);
   writeSave(window.localStorage, save);
+
+  // Announced only after the write actually happened, so "game saved" feedback can't lie.
+  gameEvents.emit('progress:saved', {
+    levelId,
+    unlockedLevelId: nextLevelId,
+    bestScore: save.levels[levelId]?.bestScore ?? levelScore,
+  });
 
   const levelCompleteScreen = new LevelCompleteScreen(gameEvents, {
     score,
@@ -145,6 +294,24 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
   });
   levelCompleteScreen.mount(uiRoot);
   showScreen(levelCompleteScreen);
+});
+
+/**
+ * The roster is mounted the same way as Settings: an independent overlay on top of whatever
+ * screen is open, so opening it from the main menu doesn't tear the menu down.
+ */
+let characterSelectScreen: CharacterSelectScreen | null = null;
+
+gameEvents.on('character-select:open', () => {
+  characterSelectScreen?.destroy();
+  const save = loadSave(window.localStorage);
+  const screen = new CharacterSelectScreen(completedLevelIds(save), () => {
+    characterSelectScreen = null;
+    syncModalState();
+  });
+  screen.mount(uiRoot);
+  characterSelectScreen = screen;
+  syncModalState();
 });
 
 gameEvents.on('settings:open', () => {
@@ -171,6 +338,11 @@ gameEvents.on('settings:changed', (settings) => {
   const updated = { ...save, settings };
   writeSave(window.localStorage, updated);
 });
+
+// The theme switch lives outside the screen stack: it stays available in menus and in play,
+// and is never torn down by a screen change.
+const visualModeToggle = new VisualModeToggle();
+visualModeToggle.mount(uiRoot);
 
 // Nothing has fired game:started yet at boot, so mount the main menu directly.
 const initialMenu = new MainMenu(gameEvents);

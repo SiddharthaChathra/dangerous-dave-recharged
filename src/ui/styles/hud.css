@@ -88,6 +88,21 @@ body.ddr-modal-open .hud * {
   height: 32px;
 }
 
+[data-visual-mode='classic'] .avatar svg {
+  display: none;
+}
+[data-visual-mode='classic'] .avatar {
+  background: var(--ddr-accent-primary);
+  border-radius: 0;
+  box-shadow: none;
+}
+[data-visual-mode='classic'] .avatar::after {
+  content: "8-BIT";
+  font-family: var(--ddr-font-display);
+  font-size: 10px;
+  color: #fff;
+}
+
 .health-bar-wrap {
   display: flex;
   flex-direction: column;
@@ -281,4 +296,180 @@ body.ddr-modal-open .hud * {
   .stat-label { font-size: 0.5rem; letter-spacing: 0.05em; }
   .stat-value { font-size: 0.95rem; }
   .hud-pause-btn { width: 36px; height: 36px; }
+}
+
+/* ---- Theme switch (CLASSIC DAVE / CURRENT VISUAL) --------------------------------------
+   Floats above ALL overlays including screen modals (z-index 200) so it is always clickable.
+   See THEME_INTEGRATION.md. */
+.visual-mode-toggle {
+  /* `absolute`, not `fixed`: #ui-root is kept aligned to the letterboxed canvas at runtime, so
+     positioning against it keeps the switch inside the game frame instead of floating against
+     the window and drifting into the letterbox bars.
+     Bottom-RIGHT rather than bottom-centre: centred, it sat directly on the ground the player
+     runs along and hid Dave as he passed underneath. */
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 250;
+  pointer-events: auto;
+}
+
+.visual-mode-toggle__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ddr-space-2);
+  padding: 10px 20px;
+  min-height: 44px;
+  min-width: 44px;
+  font-family: var(--ddr-font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ddr-text-secondary);
+  background: rgba(12, 14, 22, 0.85);
+  border: 1px solid var(--ddr-border-subtle);
+  border-radius: var(--ddr-radius-lg);
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease,
+              box-shadow 180ms ease, transform 120ms ease;
+}
+
+.visual-mode-toggle__btn:hover {
+  color: var(--ddr-text-primary);
+  border-color: var(--ddr-accent-primary);
+  background: rgba(0, 240, 255, 0.12);
+  box-shadow: var(--ddr-glow-primary);
+  transform: translateY(-2px);
+}
+
+.visual-mode-toggle__btn:active {
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 50ms;
+}
+
+.visual-mode-toggle__btn:focus-visible {
+  outline: 2px solid var(--ddr-accent-primary);
+  outline-offset: 4px;
+}
+
+.visual-mode-toggle__icon {
+  opacity: 0.8;
+  font-size: 1rem;
+  display: inline-block;
+  transition: transform 400ms var(--ddr-ease-spring);
+}
+
+.visual-mode-toggle[data-mode="classic"] .visual-mode-toggle__icon {
+  transform: rotateX(180deg);
+  color: #ffca28;
+}
+
+.visual-mode-toggle__label {
+  display: inline-block;
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+
+/* Subtle bump animation on mode switch */
+@keyframes modeSwitchBump {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+.visual-mode-toggle[data-mode="classic"] .visual-mode-toggle__btn {
+  animation: modeSwitchBump 300ms var(--ddr-ease-out);
+}
+.visual-mode-toggle[data-mode="current"] .visual-mode-toggle__btn {
+  animation: modeSwitchBump 300ms var(--ddr-ease-out);
+}
+
+/* The toggle is intentionally always clickable — switching themes should never require
+   closing a menu first. It does not affect game state. */
+
+/* ---- Tutorial & Popups ---- */
+.hud-tutorial {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(14, 15, 23, 0.85);
+  border: 2px solid var(--ddr-accent-primary);
+  border-radius: var(--ddr-radius-lg);
+  padding: var(--ddr-space-6);
+  color: var(--ddr-text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ddr-space-3);
+  align-items: center;
+  box-shadow: var(--ddr-glow-primary);
+  pointer-events: auto;
+  z-index: 50;
+}
+
+.hud-tutorial h3 {
+  font-family: var(--ddr-font-display);
+  color: var(--ddr-accent-secondary);
+  text-transform: uppercase;
+}
+
+.hud-tutorial p {
+  font-size: 1rem;
+}
+
+.hud-tutorial kbd {
+  background: var(--ddr-bg-base);
+  border: 1px solid var(--ddr-text-secondary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: var(--ddr-font-mono);
+  margin: 0 2px;
+}
+
+.hud-tutorial button {
+  margin-top: var(--ddr-space-4);
+  background: var(--ddr-accent-primary);
+  color: #000;
+  border: none;
+  padding: 8px 16px;
+  font-family: var(--ddr-font-display);
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: var(--ddr-radius-sm);
+  transition: transform var(--ddr-trans-fast);
+}
+
+.hud-tutorial button:hover {
+  transform: scale(1.1);
+}
+
+.hud-popup {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--ddr-font-display);
+  font-size: 2rem;
+  font-weight: 900;
+  text-shadow: 0 4px 15px rgba(0,0,0,0.8);
+  pointer-events: none;
+  z-index: 45;
+  white-space: nowrap;
+}
+
+@keyframes hud-popup-anim {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.5); }
+  10% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  20% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -50%); }
+  100% { opacity: 0; transform: translate(-50%, -70%); }
+}
+
+[data-visual-mode='classic'] .hud-tutorial {
+  border-radius: 0;
+  border-width: 4px;
+}
+[data-visual-mode='classic'] .hud-tutorial button {
+  border-radius: 0;
 }

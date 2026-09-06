@@ -56,7 +56,9 @@ export class LevelCompleteScreen {
 
     container.querySelector('[data-levelcomplete="continue"]')!.addEventListener('click', () => {
       audioSystem.playSfx('uiClick');
-      this.bus.emit('game:started', { levelId: this.data.nextLevelId ?? 'menu' });
+      // 'next-level' (not the raw id) so the run's remaining lives and score carry forward
+      // instead of being reset the way starting a fresh level from the menu does.
+      this.bus.emit('game:started', { levelId: this.data.nextLevelId ? 'next-level' : 'menu' });
     });
 
     const menuBtn = container.querySelector('[data-levelcomplete="menu"]');

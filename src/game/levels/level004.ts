@@ -43,11 +43,11 @@ export const level004: LevelData = {
     { x: 2700, y: 300, width: 80, height: 20, fallDelayMs: 350 },
   ],
   hazards: [
-    { x: 780, y: 300, width: 32, height: 20, kind: 'spike' },
-    { x: 860, y: 300, width: 32, height: 20, kind: 'spike' },
+    { x: 780, y: 300, width: 32, height: 20, kind: 'fire' },
+    { x: 860, y: 300, width: 32, height: 20, kind: 'fire' },
     { x: 1650, y: 460, width: 32, height: 20, kind: 'spike' },
-    { x: 1750, y: 460, width: 32, height: 20, kind: 'spike' },
-    { x: 2380, y: 180, width: 32, height: 20, kind: 'spike' },
+    { x: 1750, y: 460, width: 32, height: 20, kind: 'fire' },
+    { x: 2380, y: 180, width: 32, height: 20, kind: 'fire' },
   ],
   enemies: [
     { kind: 'patrol', x: 900, y: 288, rangePx: 100 },
@@ -62,7 +62,7 @@ export const level004: LevelData = {
     { x: 400, y: 440, kind: 'gem' },
     { x: 600, y: 340, kind: 'gem' },
     { x: 850, y: 280, kind: 'gem' },
-    { x: 1250, y: 410, kind: 'gem' },
+    
     { x: 1450, y: 520, kind: 'gem' },
     { x: 1700, y: 440, kind: 'gem' },
     { x: 2050, y: 340, kind: 'gem' },
@@ -71,11 +71,9 @@ export const level004: LevelData = {
     { x: 2400, y: 160, kind: 'secret' },
     { x: 750, y: 250, kind: 'secret' },
   ],
-  checkpoints: [
-    { id: 'level004-cp1', x: 800, y: 280 },
-    { id: 'level004-cp2', x: 1650, y: 440 },
-    { id: 'level004-cp3', x: 2400, y: 160 },
-  ],
+  weaponPickups: [{ x: 240, y: 722 }],
+  // Collect this before the exit door will open.
+  trophy: { x: 1250, y: 410 },
   goal: { x: 3140, y: 720 },
   backgroundPalette: 'sky',
 };

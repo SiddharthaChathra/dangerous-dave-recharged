@@ -14,12 +14,13 @@ export class MainMenu {
     const container = document.createElement('div');
     container.className = 'screen screen--menu';
     container.innerHTML = `
-      <div class="screen__panel" style="background: transparent; border: none; box-shadow: none; text-align: left; padding: 0 var(--ddr-space-12); align-items: flex-start; max-width: 600px; margin-top: auto; margin-bottom: 15vh;">
+      <div class="screen__panel" style="background: transparent; border: none; box-shadow: none; text-align: left; padding: var(--ddr-space-8) var(--ddr-space-12); max-width: 600px; margin: 10vh auto;">
         <h1 class="stagger-1" style="font-size: 4rem; text-align: left; line-height: 1; text-shadow: 0 10px 30px rgba(0,0,0,0.8); margin-bottom: 0;">DANGEROUS<br><span style="color: var(--ddr-accent-primary);">DAVE</span></h1>
         <p class="stagger-2" style="color: var(--ddr-text-secondary); font-size: 1.2rem; letter-spacing: 0.2em; text-transform: uppercase; margin-top: var(--ddr-space-2); margin-bottom: var(--ddr-space-8); text-shadow: 0 2px 10px rgba(0,0,0,0.8);">Recharged</p>
         
         <div class="stagger-3" style="display: flex; gap: var(--ddr-space-4); margin-bottom: var(--ddr-space-8);">
           <button data-menu="play" class="btn--primary" style="font-size: 1.4rem; padding: var(--ddr-space-4) var(--ddr-space-12);">▶ PLAY</button>
+          <button data-menu="roster" class="btn--secondary">👥 ROSTER</button>
           <button data-menu="settings" class="btn--secondary">⚙ SETTINGS</button>
         </div>
 
@@ -65,6 +66,11 @@ export class MainMenu {
     container.querySelector('[data-menu="settings"]')!.addEventListener('click', () => {
       audioSystem.playSfx('uiClick');
       this.bus.emit('settings:open', {} as Record<string, never>);
+    });
+
+    container.querySelector('[data-menu="roster"]')!.addEventListener('click', () => {
+      audioSystem.playSfx('uiClick');
+      this.bus.emit('character-select:open', {} as Record<string, never>);
     });
 
     // Level select cards

@@ -15,21 +15,43 @@
   animation: cinematicFadeIn 600ms var(--ddr-ease-out) both;
 }
 
+/* #ui-root is pointer-events: none so the HUD never blocks the game, which means every
+   interactive layer has to opt back in. A modal overlay is exactly such a layer: without this
+   its buttons compute to pointer-events: none and clicks fall straight through to the canvas,
+   leaving Game Over / Pause / Level Complete / Roster looking normal but completely dead. */
+.screen--overlay,
+.screen__panel {
+  pointer-events: auto;
+}
+
+/* The menu screen must scroll when level cards exceed the viewport height (e.g. 10 levels
+   on 1366×768). align-items: flex-start prevents the flex container from centering content
+   that overflows — centering causes the top to clip unreachably above the viewport. */
+.screen--menu {
+  overflow-y: auto;
+  overflow-x: hidden;
+  align-items: flex-start; /* top vertical alignment so scroll works */
+  justify-content: center; /* center horizontally */
+}
+
 @keyframes cinematicFadeIn {
   from { opacity: 0; filter: blur(10px); }
   to { opacity: 1; filter: blur(0); }
 }
 
-/* Make main menu background fully transparent, as Phaser will draw the animated hero scene */
+/* Main menu is transparent — Phaser draws the animated hero scene behind it.
+   pointer-events: none lets clicks pass to background; UI children catch them. */
 .screen--menu {
   background: transparent;
-  pointer-events: none; /* Let clicks pass to background if needed, but UI elements catch them */
+  pointer-events: none;
 }
 .screen--menu .screen__panel {
   pointer-events: auto;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   background: var(--ddr-bg-surface);
+  /* Give content room to breathe at the bottom when scrolled */
+  margin-bottom: var(--ddr-space-16);
 }
 
 .screen--overlay {
@@ -143,8 +165,8 @@
 }
 
 .btn:active, .screen__panel button:active {
-  transform: translateY(1px) scale(0.98);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  transform: translateY(2px) scale(0.95);
+  box-shadow: 0 0 5px rgba(0, 240, 255, 0.4);
   transition: all 50ms ease-out;
 }
 
@@ -447,3 +469,320 @@
     margin: var(--ddr-space-2);
   }
 }
+
+/* ---- Life Lost beat ----
+   Shown for a moment between dying and the level restarting. Lighter than the other overlays
+   on purpose: it is a transition, not a menu, so the level stays visible behind it. */
+.screen--flash {
+  background: rgba(6, 6, 9, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: lifeLostFade 180ms var(--ddr-ease-out) both;
+}
+
+@keyframes lifeLostFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.screen__panel--compact {
+  min-width: 280px;
+  max-width: 360px;
+  padding: var(--ddr-space-6) var(--ddr-space-8);
+  gap: var(--ddr-space-2);
+  animation-duration: 260ms;
+}
+
+.life-lost__title {
+  color: var(--ddr-danger);
+  text-shadow: 0 0 18px rgba(255, 0, 60, 0.45);
+  margin-bottom: 0;
+}
+
+.life-lost__pips {
+  display: flex;
+  justify-content: center;
+  gap: var(--ddr-space-2);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.life-pip--held {
+  color: var(--ddr-danger);
+  text-shadow: 0 0 12px rgba(255, 0, 60, 0.5);
+}
+
+.life-pip--lost {
+  color: var(--ddr-text-secondary);
+  opacity: 0.45;
+}
+
+.life-lost__hint {
+  font-family: var(--ddr-font-display);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--ddr-text-primary);
+  margin: 0;
+}
+
+.life-lost__sub {
+  color: var(--ddr-text-secondary);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* ---- Game Over: spent lives ---- */
+.gameover__lives {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ddr-space-2);
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.gameover__lives-label {
+  font-family: var(--ddr-font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--ddr-text-secondary);
+  margin-left: var(--ddr-space-2);
+}
+
+/* Level names are words, not digits — don't force them into the tabular numeric treatment. */
+.stat-card__value--text {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+/* ---- Character Roster — Showcase Layout ---- */
+
+/* Two-column layout: showcase+info on left, card grid on right */
+.roster-layout {
+  display: flex;
+  gap: var(--ddr-space-8);
+  align-items: stretch;
+  width: min(90vw, 900px);
+  max-height: 85vh;
+  padding: var(--ddr-space-8);
+  background: var(--ddr-grad-surface);
+  border: 1px solid var(--ddr-border-subtle);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--ddr-radius-xl);
+  box-shadow: var(--ddr-shadow-panel);
+  position: relative;
+  overflow: hidden;
+  animation: panelSlideUp 700ms var(--ddr-ease-spring) both;
+}
+
+/* Corner accents (same as .screen__panel) */
+.roster-layout::before, .roster-layout::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border: 2px solid var(--ddr-accent-primary);
+  opacity: 0.3;
+  pointer-events: none;
+}
+.roster-layout::before { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+.roster-layout::after { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+/* Left side: showcase canvas + character info */
+.roster-showcase-side {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ddr-space-4);
+  min-width: 0;
+}
+
+.roster-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ddr-space-2);
+  align-self: flex-start;
+  padding-left: var(--ddr-space-4);
+  min-height: 60px;
+}
+
+.roster-info__name {
+  font-family: var(--ddr-font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ddr-accent-primary);
+  text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 350ms var(--ddr-ease-out), transform 350ms var(--ddr-ease-out);
+}
+
+.roster-info__blurb {
+  font-size: 0.9rem;
+  color: var(--ddr-text-secondary);
+  line-height: 1.5;
+  max-width: 280px;
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 400ms var(--ddr-ease-out) 80ms, transform 400ms var(--ddr-ease-out) 80ms;
+}
+
+.roster-info--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.roster-showcase-wrap {
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.showcase-canvas {
+  display: block;
+  border-radius: var(--ddr-radius-md);
+}
+
+/* Right side: card grid + close */
+.roster-cards-side {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ddr-space-3);
+  overflow-y: auto;
+  padding-right: var(--ddr-space-2);
+}
+
+.roster-cards-side h2 {
+  font-family: var(--ddr-font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ddr-text-primary);
+}
+
+.roster__hint {
+  font-size: 0.8rem;
+  color: var(--ddr-text-secondary);
+  margin-bottom: var(--ddr-space-2);
+}
+
+.roster-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ddr-space-3);
+  margin-bottom: var(--ddr-space-4);
+  width: 100%;
+}
+
+.character-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ddr-space-1);
+  padding: var(--ddr-space-3) var(--ddr-space-4);
+  background: rgba(0, 240, 255, 0.03);
+  border: 1px solid var(--ddr-border-subtle);
+  border-radius: var(--ddr-radius-md);
+  cursor: pointer;
+  transition: all var(--ddr-trans-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.character-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--ddr-radius-md);
+  border: 2px solid transparent;
+  transition: border-color var(--ddr-trans-normal);
+}
+
+.character-card:hover:not(.character-card--locked) {
+  background: rgba(0, 240, 255, 0.08);
+  border-color: var(--ddr-accent-primary);
+  transform: translateY(-2px);
+  box-shadow: var(--ddr-glow-primary);
+}
+
+.character-card--active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--ddr-accent-primary);
+  box-shadow: var(--ddr-glow-primary);
+}
+.character-card--active::before {
+  border-color: var(--ddr-accent-primary);
+}
+
+.character-card--locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+.character-card__name {
+  font-family: var(--ddr-font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--ddr-text-primary);
+}
+
+.character-card--active .character-card__name {
+  color: var(--ddr-accent-primary);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.character-card__blurb {
+  font-size: 0.65rem;
+  color: var(--ddr-text-secondary);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.character-card__badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: var(--ddr-accent-primary);
+  color: var(--ddr-bg-base);
+  font-family: var(--ddr-font-display);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 2px 5px;
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+/* Responsive: stack on narrow viewports */
+@media (max-width: 700px) {
+  .roster-layout {
+    flex-direction: column;
+    width: 95vw;
+    max-height: 90vh;
+    padding: var(--ddr-space-4);
+    gap: var(--ddr-space-4);
+  }
+  .roster-cards-side {
+    flex: none;
+  }
+  .roster-showcase-wrap {
+    max-width: 220px;
+  }
+  .roster-info__name {
+    font-size: 1.2rem;
+  }
+}
+

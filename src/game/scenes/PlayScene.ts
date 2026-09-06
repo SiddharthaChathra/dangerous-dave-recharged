@@ -10,17 +10,28 @@ import { FallingPlatform } from '../entities/FallingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { EnemyBase } from '../entities/EnemyBase';
 import { ChaseEnemy } from '../entities/ChaseEnemy';
-import { Checkpoint } from '../entities/Checkpoint';
 import { Collectible } from '../entities/Collectible';
+import { WeaponPickup } from '../entities/WeaponPickup';
+import { Trophy } from '../entities/Trophy';
+import { Projectile } from '../entities/Projectile';
 import { InputController } from '../systems/InputController';
 import { gameEvents } from '../core/EventBus';
 import { audioSystem } from '../core/audio';
 import { ParticleFX } from '../systems/ParticleFX';
+import { VisualSkinner, type Skinnable } from '../systems/VisualSkinner';
+import { getVisualMode } from '../core/visualMode';
 import { loadSave } from '../systems/SaveSystem';
-import { createLivesState, applyDamage, setCheckpoint, STARTING_LIVES, type LivesState } from '../../utils/livesReducer';
-import { createScoreState, collectGem, collectSecret, type ScoreState } from '../../utils/scoring';
-import type { MoveInput } from '../../utils/physics';
+import { createLivesState, applyDamage, STARTING_LIVES, type LivesState } from '../../utils/livesReducer';
+import { createScoreState, collectGem, collectSecret, defeatEnemy, ENEMY_DEFEAT_SCORE, GEM_SCORE, SECRET_SCORE, type ScoreState } from '../../utils/scoring';
+import { createWeaponState, pickUpWeapon, canFire, projectileVelocityX, type WeaponState } from '../../utils/weapon';
+import { clampDelta, hasFallenOutOfBounds, type MoveInput } from '../../utils/physics';
 import { PHYSICS } from '../core/constants';
+
+/**
+ * How long the death animation plays before the outcome (level restart / game over) is
+ * announced. Long enough to read as a death, short enough not to make the player wait.
+ */
+const DEATH_ANIM_MS = 650;
 
 export class PlayScene extends Phaser.Scene {
   private level!: LevelData;
@@ -30,9 +41,19 @@ export class PlayScene extends Phaser.Scene {
   private fallingPlatforms: FallingPlatform[] = [];
   private hazards: Hazard[] = [];
   private enemies: EnemyBase[] = [];
-  private checkpoints: Checkpoint[] = [];
   private collectibles: Collectible[] = [];
-  private goalZone!: Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
+  private weaponPickups: WeaponPickup[] = [];
+  private trophy!: Trophy;
+  /** Throttles the locked-door nudge so brushing the door doesn't spam feedback. */
+  private lastLockedFeedbackAt = 0;
+  /** Paces hazard ember emission so it doesn't spawn particles every frame. */
+  private hazardFxAccumulator = 0;
+  /** Solid level geometry, kept so projectiles can be made to stop at walls and floors. */
+  private staticGroup!: Phaser.Physics.Arcade.StaticGroup;
+  private projectiles: Projectile[] = [];
+  private weaponState: WeaponState = createWeaponState();
+  /** The exit door. A Sprite, so its texture can reflect locked/unlocked state. */
+  private goalZone!: Phaser.GameObjects.Sprite & { body: Phaser.Physics.Arcade.StaticBody };
   private cameraController!: CameraController;
   private parallax!: ParallaxController;
   private fx!: ParticleFX;
@@ -45,10 +66,21 @@ export class PlayScene extends Phaser.Scene {
   private dustAccumulator = 0;
   private wasOnGround = false;
   private levelCompleted = false;
+  /** True from the moment a death starts until the scene is torn down, freezing the run. */
+  private dying = false;
+  /** True once the exit sequence starts, so it can never run twice. */
+  private doorSequenceStarted = false;
+  /** Lives/score this level attempt begins with, carried in from the run by main.ts. */
+  private startingLives = STARTING_LIVES;
+  private startingScore = 0;
   private reducedMotion = false;
   private lastFallSpeed = 0;
   private trailAccumulator = 0;
   private vignette!: Phaser.GameObjects.Graphics;
+  /** Swaps textures on the live world when the presentation mode changes. Visual-only. */
+  private skinner!: VisualSkinner;
+  /** Unsubscribe for the theme listener, so a scene restart never leaves a duplicate. */
+  private offVisualModeChanged: (() => void) | null = null;
   /** Glow sprites that track their owner each frame. */
   private glows: Array<{ glow: Phaser.GameObjects.Image; target: { x: number; y: number; visible: boolean } }> = [];
 
@@ -56,9 +88,13 @@ export class PlayScene extends Phaser.Scene {
     super('Play');
   }
 
-  init(data: { levelId: string }): void {
+  init(data: { levelId: string; lives?: number; score?: number }): void {
     this.level = getLevel(data?.levelId);
     this.levelCompleted = false;
+    this.dying = false;
+    this.doorSequenceStarted = false;
+    this.startingLives = data?.lives ?? STARTING_LIVES;
+    this.startingScore = data?.score ?? 0;
     this.elapsedSeconds = 0;
     this.timerAccumulator = 0;
   }
@@ -76,21 +112,28 @@ export class PlayScene extends Phaser.Scene {
     this.fallingPlatforms = levelBuild.fallingPlatforms;
     this.hazards = levelBuild.hazards;
     this.enemies = levelBuild.enemies;
-    this.checkpoints = levelBuild.checkpoints;
     this.collectibles = levelBuild.collectibles;
+    this.weaponPickups = levelBuild.weaponPickups;
+    this.trophy = levelBuild.trophy;
+    this.staticGroup = levelBuild.staticGroup;
 
-    // Initialize lives state
-    this.livesState = createLivesState();
+    // The gun is per level attempt: a death re-stages the level, so it must be found again.
+    this.projectiles = [];
+    this.weaponState = createWeaponState();
+
+    // Lives and score belong to the *run*, not the level: a restart after a death (or the next
+    // level) continues with what's left, so three deaths end the run wherever they happen.
+    this.livesState = createLivesState(this.startingLives);
     // Initialize lastDamageTime to negative so first damage always applies
     this.lastDamageTime = -this.invulnerabilityWindowMs;
 
-    // Initialize score state
-    this.scoreState = createScoreState(levelBuild.totalCollectibles);
+    this.scoreState = createScoreState(levelBuild.totalCollectibles, this.startingScore);
 
     // Emit initial state for HUD display
     gameEvents.emit('lives:changed', { lives: this.livesState.lives });
     gameEvents.emit('score:changed', { score: this.scoreState.score });
     gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
+    gameEvents.emit('weapon:changed', { hasGun: this.weaponState.hasGun });
     this.emitHp();
 
     // Attach camera controller with bounds matching level dimensions
@@ -119,9 +162,6 @@ export class PlayScene extends Phaser.Scene {
         collectible.kind === 'secret' ? 46 : 34,
         0.5,
       );
-    }
-    for (const checkpoint of this.checkpoints) {
-      this.attachGlow(checkpoint.sprite, 0x4ade80, 52, 0.32);
     }
     for (const hazard of this.hazards) {
       this.attachGlow(hazard.sprite, 0xff4d4d, 40, 0.22);
@@ -163,28 +203,22 @@ export class PlayScene extends Phaser.Scene {
       });
     }
 
-    // Set up checkpoint overlaps
-    for (const checkpoint of this.checkpoints) {
-      this.physics.add.overlap(this.player.sprite, checkpoint.sprite, () => {
-        if (checkpoint.activate()) {
-          this.livesState = setCheckpoint(this.livesState, checkpoint.id);
-          gameEvents.emit('checkpoint:reached', { id: checkpoint.id });
-          audioSystem.playSfx('checkpoint');
-          this.fx.checkpointPulse(checkpoint.sprite.x, checkpoint.sprite.y);
-        }
-      });
-    }
-
     // Set up collectible overlaps
     for (const collectible of this.collectibles) {
       this.physics.add.overlap(this.player.sprite, collectible.sprite, () => {
         if (collectible.collect()) {
-          if (collectible.kind === 'gem') {
-            this.scoreState = collectGem(this.scoreState);
-          } else if (collectible.kind === 'secret') {
-            this.scoreState = collectSecret(this.scoreState);
-          }
+          const isSecret = collectible.kind === 'secret';
+          this.scoreState = isSecret ? collectSecret(this.scoreState) : collectGem(this.scoreState);
           gameEvents.emit('score:changed', { score: this.scoreState.score });
+          // Explicit pickup event so reward UI never has to guess from score deltas.
+          gameEvents.emit('collectible:collected', {
+            kind: collectible.kind,
+            value: isSecret ? SECRET_SCORE : GEM_SCORE,
+            x: collectible.sprite.x,
+            y: collectible.sprite.y,
+            collected: this.scoreState.collected,
+            total: this.scoreState.total,
+          });
           gameEvents.emit('collectible:changed', { collected: this.scoreState.collected, total: this.scoreState.total });
           audioSystem.playSfx('collect');
           this.fx.sparkle(collectible.sprite.x, collectible.sprite.y);
@@ -198,13 +232,55 @@ export class PlayScene extends Phaser.Scene {
       });
     }
 
+    // Picking up the gun arms Dave for the rest of this level attempt.
+    for (const pickup of this.weaponPickups) {
+      this.physics.add.overlap(this.player.sprite, pickup.sprite, () => {
+        if (this.dying || !pickup.collect()) return;
+        this.weaponState = pickUpWeapon(this.weaponState);
+        gameEvents.emit('weapon:changed', { hasGun: true });
+        audioSystem.playSfx('collect');
+        this.fx.sparkle(pickup.sprite.x, pickup.sprite.y);
+        this.fx.scorePopup(pickup.sprite.x, pickup.sprite.y, 'GUN!', '#ffe98a');
+      });
+    }
+
     // Set up the goal portal
-    const goalRect = this.add.sprite(this.level.goal.x, this.level.goal.y - 40, 'goal_door');
+    // The exit is drawn locked until the trophy is collected. Which texture is shown is
+    // driven by game state here, so the art can never disagree with whether it opens.
+    const lockedKey = this.textures.exists('goal_door_locked') ? 'goal_door_locked' : 'goal_door';
+    const goalRect = this.add.sprite(this.level.goal.x, this.level.goal.y - 40, lockedKey);
     this.physics.add.existing(goalRect, true);
-    this.goalZone = goalRect as unknown as Phaser.GameObjects.Rectangle & { body: Phaser.Physics.Arcade.StaticBody };
+    this.goalZone = goalRect as unknown as Phaser.GameObjects.Sprite & { body: Phaser.Physics.Arcade.StaticBody };
     this.physics.add.overlap(this.player.sprite, this.goalZone, () => {
-      this.handleLevelComplete();
+      this.handleGoalTouched();
     });
+
+    // The trophy is the level's key: the exit stays shut until it is collected.
+    this.physics.add.overlap(this.player.sprite, this.trophy.sprite, () => {
+      if (this.dying || !this.trophy.collect()) return;
+      gameEvents.emit('trophy:collected', { x: this.trophy.sprite.x, y: this.trophy.sprite.y });
+      // Re-key through the skinner, not setTexture: the skinner has to learn the door's new
+      // base art, or the next visual-mode switch would redraw this unlocked door as locked.
+      this.skinner.rekey(this.goalZone, 'goal_door', getVisualMode());
+      this.fx.trophyCollectBurst(this.trophy.sprite.x, this.trophy.sprite.y);
+      this.fx.doorUnlockGlow(this.goalZone.x, this.goalZone.y);
+      audioSystem.playSfx('checkpoint');
+      this.fx.sparkle(this.trophy.sprite.x, this.trophy.sprite.y);
+      this.fx.scorePopup(this.trophy.sprite.x, this.trophy.sprite.y, 'DOOR UNLOCKED!', '#ffd700');
+      this.tweens.add({
+        targets: this.trophy.sprite,
+        y: this.trophy.sprite.y - 40,
+        alpha: 0,
+        scale: 1.6,
+        duration: 420,
+        ease: 'Back.In',
+        onComplete: () => this.trophy.sprite.setVisible(false),
+      });
+      // The door visibly reacts, so the cause and effect are unmistakable.
+      this.tweens.add({ targets: this.goalZone, scale: 1.15, duration: 180, yoyo: true });
+    });
+
+    this.setUpVisualSkinning(levelBuild.staticGroup);
 
     this.inputController = new InputController(this);
 
@@ -227,14 +303,28 @@ export class PlayScene extends Phaser.Scene {
     // Phaser reuses this Scene instance across restarts, so drop anything we track by hand.
     this.parallax?.destroy();
     this.glows = [];
+    // Drop the theme subscription and skin registrations, or every level restart would leave
+    // another listener re-skinning destroyed sprites.
+    this.offVisualModeChanged?.();
+    this.offVisualModeChanged = null;
+    this.skinner?.clear();
   }
 
   getInputController(): InputController {
     return this.inputController;
   }
 
-  update(_time: number, delta: number): void {
+  update(_time: number, rawDelta: number): void {
+    // Clamp so a stall (tab-switch, GC pause) can't produce one huge simulation step that
+    // tunnels the player/enemies through thin hazards or fast platforms in a single frame.
+    const delta = clampDelta(rawDelta, PHYSICS.MAX_DELTA_MS);
     this.parallax.update(this.cameras.main, delta);
+
+    // Once dead, stop simulating the player entirely: the death animation must play out
+    // untouched (Player.update would otherwise overwrite it from velocity on the next frame),
+    // and a dead player must not be steerable while the level restart is pending.
+    if (this.dying) return;
+
     const state = this.inputController.getState();
     if (state.pausePressed) gameEvents.emit('game:pause', {});
     const input: MoveInput = {
@@ -247,6 +337,16 @@ export class PlayScene extends Phaser.Scene {
     if (jumped) {
       audioSystem.playSfx('jump');
       this.fx.jumpBurst(this.player.sprite.x, this.player.sprite.y);
+    }
+
+    if (state.firePressed) this.tryFire();
+    this.reapProjectiles();
+
+    // Levels have no floor collider: falling into a pit/gap with nothing below must count as a
+    // death, or the player just falls forever off-screen while the rest of the game keeps going.
+    if (hasFallenOutOfBounds(this.player.sprite.y, this.level.heightPx, PHYSICS.FALL_DEATH_MARGIN_PX)) {
+      this.handleDamageSource();
+      return;
     }
     for (const mp of this.movingPlatforms) {
       mp.update(delta);
@@ -309,6 +409,23 @@ export class PlayScene extends Phaser.Scene {
     }
     this.wasOnGround = onGround;
 
+    // Fire and lava flow, and shed embers. Purely cosmetic: the damage box never moves.
+    this.hazardFxAccumulator += delta;
+    const emitEmbers = this.hazardFxAccumulator >= 90;
+    if (emitEmbers) this.hazardFxAccumulator -= 90;
+    for (const hazard of this.hazards) {
+      if (hazard.kind === 'spike') continue;
+      hazard.sprite.tilePositionY -= (hazard.kind === 'lava' ? 0.02 : 0.05) * delta;
+      if (emitEmbers && !this.reducedMotion) {
+        const spread = hazard.sprite.width / 2;
+        this.fx.hazardEmber(
+          hazard.sprite.x + (Math.random() * 2 - 1) * spread,
+          hazard.sprite.y - hazard.sprite.height / 2,
+          hazard.kind === 'lava',
+        );
+      }
+    }
+
     // Accumulate time and emit timer/progress events once per second
     this.timerAccumulator += delta;
     if (this.timerAccumulator >= 1000) {
@@ -318,6 +435,99 @@ export class PlayScene extends Phaser.Scene {
       const progress = this.player.sprite.x / this.level.widthPx;
       gameEvents.emit('level:progress', { percent: progress });
     }
+  }
+
+  /**
+   * Fires a shot, if Dave is armed and no shot is already in flight. Every collision the shot
+   * can have is registered here, at creation, rather than polled per frame.
+   */
+  private tryFire(): void {
+    if (this.dying || this.levelCompleted) return;
+    if (!canFire(this.weaponState, this.projectiles.length)) return;
+
+    const facingLeft = this.player.sprite.flipX;
+    const muzzleX = this.player.sprite.x + (facingLeft ? -PHYSICS.MUZZLE_OFFSET_X : PHYSICS.MUZZLE_OFFSET_X);
+    const muzzleY = this.player.sprite.y;
+
+    const projectile = new Projectile(this, muzzleX, muzzleY, projectileVelocityX(facingLeft, PHYSICS.PROJECTILE_SPEED));
+    this.projectiles.push(projectile);
+
+    // Shots stop at solid geometry so you can't shoot through the level.
+    this.physics.add.collider(projectile.sprite, this.staticGroup, () => projectile.destroy());
+    for (const mp of this.movingPlatforms) {
+      this.physics.add.collider(projectile.sprite, mp.sprite, () => projectile.destroy());
+    }
+
+    for (const enemy of this.enemies) {
+      this.physics.add.overlap(projectile.sprite, enemy.sprite, () => {
+        if (projectile.isDestroyed || enemy.context.state === 'dead' || enemy.context.state === 'hurt') return;
+        projectile.destroy();
+        enemy.hit();
+        this.scoreState = defeatEnemy(this.scoreState);
+        gameEvents.emit('score:changed', { score: this.scoreState.score });
+        audioSystem.playSfx('enemyDefeat');
+        this.fx.scorePopup(enemy.sprite.x, enemy.sprite.y, `+${ENEMY_DEFEAT_SCORE}`, '#9dff8a');
+      });
+    }
+
+    audioSystem.playSfx('jump');
+    this.fx.jumpBurst(muzzleX, muzzleY);
+    this.player.recoil(facingLeft);
+  }
+
+  /** Drops shots that hit something or left the level, keeping the array (and physics) small. */
+  private reapProjectiles(): void {
+    if (this.projectiles.length === 0) return;
+    for (const projectile of this.projectiles) {
+      if (!projectile.isDestroyed && projectile.isSpent(this.level.widthPx, this.level.heightPx, PHYSICS.PROJECTILE_MAX_RANGE_PX)) {
+        projectile.destroy();
+      }
+    }
+    this.projectiles = this.projectiles.filter((p) => !p.isDestroyed);
+  }
+
+  /**
+   * Registers the level's visuals with the theme skinner and keeps them in sync with the
+   * current presentation mode.
+   *
+   * Everything here is presentation-only: the skinner just swaps textures on objects that
+   * already exist, which is what lets the player switch themes mid-level without the world
+   * being rebuilt. No physics body, coordinate, or gameplay value is touched, so the two
+   * modes are guaranteed to play identically.
+   */
+  private setUpVisualSkinning(staticGroup: Phaser.Physics.Arcade.StaticGroup): void {
+    this.skinner = new VisualSkinner((key) => this.textures.exists(key));
+
+    // Base keys are read from the freshly-built objects, so adding new world art needs no
+    // changes here — it is skinnable as soon as a `classic__<key>` texture is registered.
+    const registerSprite = (obj: unknown) => {
+      const candidate = obj as Skinnable | null;
+      if (!candidate || typeof candidate.setTexture !== 'function') return;
+      // baseKeyOf resolves a TileSprite's source art rather than its generated fill canvas —
+      // reading `texture.key` directly left every platform in the game un-skinned.
+      const baseKey = this.skinner.baseKeyOf(candidate);
+      if (baseKey) this.skinner.register(candidate, baseKey);
+    };
+
+    for (const tile of staticGroup.getChildren()) registerSprite(tile);
+    for (const mp of this.movingPlatforms) registerSprite(mp.sprite);
+    for (const fp of this.fallingPlatforms) registerSprite(fp.sprite);
+    for (const hazard of this.hazards) registerSprite(hazard.sprite);
+    for (const enemy of this.enemies) registerSprite(enemy.sprite);
+    for (const collectible of this.collectibles) registerSprite(collectible.sprite);
+    for (const pickup of this.weaponPickups) registerSprite(pickup.sprite);
+    registerSprite(this.goalZone);
+
+    // Apply immediately: a level entered while classic mode is already active must start skinned.
+    this.skinner.applyMode(getVisualMode());
+    this.player.refreshSkin();
+
+    this.offVisualModeChanged = gameEvents.on('visual-mode:changed', ({ mode }) => {
+      this.skinner.applyMode(mode);
+      // The player's texture is owned by its animator (it changes per movement state), so it
+      // re-resolves its own key rather than being registered as a static sprite.
+      this.player.refreshSkin();
+    });
   }
 
   /**
@@ -401,6 +611,69 @@ export class PlayScene extends Phaser.Scene {
     });
   }
 
+  /**
+   * The exit door. Locked until the trophy is collected: touching it early gives clear,
+   * repeatable feedback and nothing else — there is no way to slip past it, because completion
+   * is gated on game state rather than on collision geometry.
+   */
+  private handleGoalTouched(): void {
+    if (this.dying || this.levelCompleted || this.doorSequenceStarted) return;
+
+    if (!this.trophy.isCollected) {
+      const now = this.time.now;
+      if (now - this.lastLockedFeedbackAt < 1000) return;
+      this.lastLockedFeedbackAt = now;
+
+      gameEvents.emit('door:locked', { x: this.goalZone.x, y: this.goalZone.y });
+      audioSystem.playSfx('damage');
+      this.fx.scorePopup(this.goalZone.x, this.goalZone.y - 30, 'LOCKED — FIND THE TROPHY', '#ff6b6b');
+      // A short rattle: the door refuses, rather than silently doing nothing.
+      this.tweens.add({ targets: this.goalZone, x: this.goalZone.x + 4, duration: 60, yoyo: true, repeat: 3 });
+      this.cameraController.shake();
+      return;
+    }
+
+    this.startDoorSequence();
+  }
+
+  /**
+   * The unlocked exit: Dave steps into the doorway and the door closes behind him before the
+   * level-complete screen appears, so finishing reads as an action rather than a teleport.
+   */
+  private startDoorSequence(): void {
+    this.doorSequenceStarted = true;
+
+    const body = this.player.sprite.body as Phaser.Physics.Arcade.Body;
+    this.player.sprite.setVelocity(0, 0);
+    body.enable = false;
+    gameEvents.emit('door:opening', { levelId: this.level.id });
+    audioSystem.playSfx('levelComplete');
+
+    // Walk into the doorway, then shrink into it as the door shuts.
+    this.tweens.add({
+      targets: this.player.sprite,
+      x: this.goalZone.x,
+      duration: 260,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: this.player.sprite,
+          scale: 0,
+          alpha: 0,
+          duration: 260,
+          ease: 'Back.In',
+        });
+        this.tweens.add({
+          targets: this.goalZone,
+          scaleY: 1.25,
+          duration: 200,
+          yoyo: true,
+          onComplete: () => this.handleLevelComplete(),
+        });
+      },
+    });
+  }
+
   private handleLevelComplete(): void {
     if (this.levelCompleted || this.livesState.isGameOver) return;
     this.levelCompleted = true;
@@ -416,36 +689,44 @@ export class PlayScene extends Phaser.Scene {
     this.cameraController.celebrate();
   }
 
+  /**
+   * Every death costs exactly one life and ends the current level attempt — there is no
+   * checkpoint respawn and no respawn-in-place. The death animation plays first, then the
+   * outcome is announced (`life:lost` restarts this level from its beginning, `game:over` ends
+   * the run); main.ts owns the transition itself, as it does for every other scene change.
+   */
   private handleDamageSource(): void {
+    if (this.dying || this.levelCompleted) return;
     const now = this.time.now;
-    if (now - this.lastDamageTime >= this.invulnerabilityWindowMs) {
-      this.lastDamageTime = now;
-      this.livesState = applyDamage(this.livesState);
-      gameEvents.emit('lives:changed', { lives: this.livesState.lives });
-      this.emitHp();
-      this.fx.damageBurst(this.player.sprite.x, this.player.sprite.y);
-      this.flashDamage();
-      this.cameraController.shake();
-      gameEvents.emit('player:died', { livesRemaining: this.livesState.lives });
-      this.player.playHurt();
-      audioSystem.playSfx('damage');
+    if (now - this.lastDamageTime < this.invulnerabilityWindowMs) return;
 
-      // Respawn at last checkpoint or level start
-      const respawnPos = this.livesState.checkpointId
-        ? this.checkpoints.find((cp) => cp.id === this.livesState.checkpointId)
-        : null;
-      if (respawnPos) {
-        this.player.setPosition(respawnPos.sprite.x, respawnPos.sprite.y);
+    this.lastDamageTime = now;
+    this.dying = true;
+    this.livesState = applyDamage(this.livesState);
+
+    gameEvents.emit('lives:changed', { lives: this.livesState.lives });
+    this.emitHp();
+    this.fx.damageBurst(this.player.sprite.x, this.player.sprite.y);
+    this.fx.playerDeathBurst(this.player.sprite.x, this.player.sprite.y);
+    this.flashDamage();
+    this.cameraController.shake();
+    audioSystem.playSfx('damage');
+
+    // Freeze the corpse: no input, no gravity, no further collisions while the death plays out.
+    const body = this.player.sprite.body as Phaser.Physics.Arcade.Body;
+    this.player.sprite.setVelocity(0, 0);
+    body.enable = false;
+    this.player.playDeath();
+
+    const livesRemaining = this.livesState.lives;
+    const levelId = this.level.id;
+    this.time.delayedCall(DEATH_ANIM_MS, () => {
+      if (livesRemaining > 0) {
+        gameEvents.emit('life:lost', { livesRemaining, levelId });
       } else {
-        this.player.setPosition(this.level.playerStart.x, this.level.playerStart.y);
+        gameEvents.emit('game:over', { finalScore: this.scoreState.score, levelId });
       }
-
-      // Check if game is over
-      if (this.livesState.isGameOver) {
-        this.player.playDeath();
-        gameEvents.emit('game:over', { finalScore: this.scoreState.score, bestScore: 0 });
-      }
-    }
+    });
   }
 }
 

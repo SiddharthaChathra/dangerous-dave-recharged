@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { gameEvents } from '../core/EventBus';
+import { getVisualMode } from '../core/visualMode';
 
 /**
  * Layered environment renderer.
@@ -271,6 +273,8 @@ export function buildParallaxLayers(
   const viewW = scene.scale.width;
   const viewH = scene.scale.height;
   const created: Phaser.GameObjects.GameObject[] = [];
+  const modernObjects: Phaser.GameObjects.GameObject[] = [];
+  const classicObjects: Phaser.GameObjects.GameObject[] = [];
 
   // --- Sky gradient (screen-fixed, furthest back) ---
   const sky = scene.add.graphics().setScrollFactor(0).setDepth(-200);
@@ -278,7 +282,7 @@ export function buildParallaxLayers(
   sky.fillRect(0, 0, viewW, viewH * 0.6);
   sky.fillGradientStyle(spec.skyMid, spec.skyMid, spec.skyBottom, spec.skyBottom, 1);
   sky.fillRect(0, viewH * 0.6 - 1, viewW, viewH * 0.4 + 1);
-  created.push(sky);
+  created.push(sky); modernObjects.push(sky);
 
   const moteKey = ensureMoteTexture(scene);
 
@@ -384,12 +388,52 @@ export function buildParallaxLayers(
     created.push(foreground);
   }
 
-  // Dark scrim over the lower screen: pushes the busy skyline back so the player,
-  // platforms and hazards keep the strongest contrast in the frame.
   const scrim = scene.add.graphics().setScrollFactor(0).setDepth(-110);
   scrim.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.55, 0.55);
   scrim.fillRect(0, viewH * 0.45, viewW, viewH * 0.55);
   created.push(scrim);
+  modernObjects.push(scrim);
+
+  // --- Classic Mode Layers ---
+  const classicBg = scene.add.graphics().setScrollFactor(0).setDepth(-200);
+  classicBg.fillStyle(0x000000, 1);
+  classicBg.fillRect(0, 0, viewW, viewH);
+  
+  // A few static stars for classic space vibe
+  const starCount = 40;
+  for (let i = 0; i < starCount; i++) {
+    const sx = Math.random() * viewW;
+    const sy = Math.random() * viewH * 0.7; // mostly top half
+    classicBg.fillStyle(Math.random() > 0.5 ? 0xaaaaaa : 0xffffff, Math.random() * 0.8 + 0.2);
+    classicBg.fillRect(sx, sy, 2, 2);
+  }
+  created.push(classicBg);
+  classicObjects.push(classicBg);
+
+  // Populate modernObjects with everything not in classicObjects
+  for (const obj of created) {
+      if (!classicObjects.includes(obj)) {
+          modernObjects.push(obj);
+      }
+  }
+
+  // --- Visibility Toggle Logic ---
+  const updateVisibility = (mode: 'classic' | 'current') => {
+    const isClassic = mode === 'classic';
+    for (const obj of modernObjects) {
+      if ('setVisible' in obj) (obj as Phaser.GameObjects.GameObject & { setVisible: (v: boolean) => void }).setVisible(!isClassic);
+    }
+    for (const obj of classicObjects) {
+      if ('setVisible' in obj) (obj as Phaser.GameObjects.GameObject & { setVisible: (v: boolean) => void }).setVisible(isClassic);
+    }
+  };
+
+  // Initial set
+  updateVisibility(getVisualMode());
+
+  const unsubscribe = gameEvents.on('visual-mode:changed', ({ mode }) => {
+    updateVisibility(mode);
+  });
 
   let driftMs = 0;
 
@@ -406,6 +450,7 @@ export function buildParallaxLayers(
       }
     },
     destroy() {
+      unsubscribe();
       for (const obj of created) obj.destroy();
       tiles.length = 0;
       foreground = null;

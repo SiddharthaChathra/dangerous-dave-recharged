@@ -4,6 +4,8 @@ import {
   integrateHorizontal,
   applyGravity,
   updateJumpAssist,
+  clampDelta,
+  hasFallenOutOfBounds,
   type MoveInput,
   type JumpAssistState,
 } from '../src/utils/physics';
@@ -84,6 +86,31 @@ describe('updateJumpAssist', () => {
     state = updateJumpAssist(state, false, false, PHYSICS.JUMP_BUFFER_MS + 10, PHYSICS).state;
     const result = updateJumpAssist(state, true, false, 1, PHYSICS);
     expect(result.shouldJump).toBe(false);
+  });
+});
+
+describe('clampDelta', () => {
+  it('passes through a normal frame delta unchanged', () => {
+    expect(clampDelta(16.67, 50)).toBeCloseTo(16.67, 2);
+  });
+
+  it('caps a large delta spike (e.g. tab-switch stall) to the max, preventing tunneling through thin hazards', () => {
+    expect(clampDelta(400, 50)).toBe(50);
+  });
+});
+
+describe('hasFallenOutOfBounds', () => {
+  it('is false while the player is within the level (even right at the floor)', () => {
+    expect(hasFallenOutOfBounds(539, 540, 100)).toBe(false);
+    expect(hasFallenOutOfBounds(540, 540, 100)).toBe(false);
+  });
+
+  it('is false just past the floor, inside the fall-death margin (e.g. standing on ground that sits below y=0 reference)', () => {
+    expect(hasFallenOutOfBounds(600, 540, 100)).toBe(false);
+  });
+
+  it('is true once the player has fallen past the level floor by more than the margin (fell into a pit)', () => {
+    expect(hasFallenOutOfBounds(641, 540, 100)).toBe(true);
   });
 });
 

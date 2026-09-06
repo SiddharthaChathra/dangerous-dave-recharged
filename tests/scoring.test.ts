@@ -1,10 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { createScoreState, collectGem, collectSecret, computeRating } from '../src/utils/scoring';
+import { createScoreState, collectGem, collectSecret, computeRating, defeatEnemy, ENEMY_DEFEAT_SCORE } from '../src/utils/scoring';
 
 describe('scoring', () => {
   it('starts at zero score and zero collected', () => {
     const state = createScoreState(6);
     expect(state.score).toBe(0);
+    expect(state.collected).toBe(0);
+    expect(state.total).toBe(6);
+  });
+
+  it('carries the run score into a new level attempt while collectibles start fresh', () => {
+    const state = createScoreState(6, 1250);
+    expect(state.score).toBe(1250);
     expect(state.collected).toBe(0);
     expect(state.total).toBe(6);
   });
@@ -21,6 +28,16 @@ describe('scoring', () => {
     const next = collectSecret(state);
     expect(next.score).toBe(100);
     expect(next.collected).toBe(1);
+  });
+
+  it('defeating an enemy scores points without counting toward level collectibles', () => {
+    const state = createScoreState(6);
+    const next = defeatEnemy(state);
+    expect(next.score).toBe(ENEMY_DEFEAT_SCORE);
+    // Enemies are not collectibles: the gem counter and the 100%-collection rating must be
+    // unaffected, or shooting things would inflate the level rating.
+    expect(next.collected).toBe(0);
+    expect(next.total).toBe(6);
   });
 
   it('computeRating returns gold for full collection well under par time', () => {

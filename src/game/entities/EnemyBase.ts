@@ -1,5 +1,15 @@
 import Phaser from 'phaser';
 import { enemyFsmReducer, type EnemyFsmContext, type EnemyCapabilities } from './enemyFsm';
+import { computeHitboxGeometry, type HitboxConfig } from '../../utils/hitbox';
+
+/** Enemy damage box in world pixels — constant, regardless of idle/hurt animation scaling. */
+const ENEMY_HITBOX: HitboxConfig = {
+  textureWidth: 64,
+  textureHeight: 64,
+  hitboxWidth: 24,
+  hitboxHeight: 24,
+  feetOffsetY: 12,
+};
 
 export abstract class EnemyBase {
   readonly sprite: Phaser.Physics.Arcade.Sprite;
@@ -12,11 +22,8 @@ export abstract class EnemyBase {
     this.scene = scene;
     this.sprite = scene.physics.add.sprite(x, y, textureKey);
     this.sprite.setScale(this.originalScale);
-    // Unscaled physics body size calculation
-    const unscaledSize = 24 / this.originalScale;
-    (this.sprite.body as Phaser.Physics.Arcade.Body).setSize(unscaledSize, unscaledSize);
-    (this.sprite.body as Phaser.Physics.Arcade.Body).setOffset((64 - unscaledSize) / 2, (64 - unscaledSize) / 2);
-    
+    this.syncHitbox();
+
     // Add subtle idle breathing animation
     scene.tweens.add({
       targets: this.sprite,
@@ -31,9 +38,34 @@ export abstract class EnemyBase {
     this.context = { state: 'patrol', detectionRadius: 150, leashRadius: 300, distanceToPlayer: Infinity, hurtTimerMs: 0 };
   }
 
+  /**
+   * Re-derives the damage box from the sprite's current render scale.
+   *
+   * Enemies breathe (an idle scale tween) and squash when hurt, and Arcade sizes bodies as
+   * `sourceSize × scale` — so without this the enemy's damage box pulsed with its animation,
+   * making contact damage subtly inconsistent. Collision is gameplay; animation must not move it.
+   */
+  protected syncHitbox(): void {
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body | null;
+    if (!body) return;
+    // See Player.syncHitbox: refresh the cached scale before sizing, or the first frames run
+    // with an oversized damage box.
+    body.updateBounds();
+    const { sizeWidth, sizeHeight, offsetX, offsetY } = computeHitboxGeometry(
+      this.sprite.scaleX,
+      this.sprite.scaleY,
+      ENEMY_HITBOX,
+    );
+    body.setSize(sizeWidth, sizeHeight, false);
+    body.setOffset(offsetX, offsetY);
+  }
+
   tick(dtMs: number, distanceToPlayer: number): void {
     if (this.context.state === 'dead') return;
-    
+
+    // Keep the damage box constant while the idle/hurt tweens scale the sprite.
+    this.syncHitbox();
+
     const oldState = this.context.state;
     this.context = enemyFsmReducer({ ...this.context, distanceToPlayer }, { type: 'TICK', dtMs }, this.capabilities);
     

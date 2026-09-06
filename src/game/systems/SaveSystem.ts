@@ -1,3 +1,6 @@
+import { DEFAULT_VISUAL_MODE, isVisualMode, type VisualMode } from '../core/visualMode';
+import { DEFAULT_CHARACTER_ID, isCharacterId } from '../characters/roster';
+
 export interface LevelSaveEntry {
   bestScore: number;
   bestTimeSeconds: number | null;
@@ -7,6 +10,15 @@ export interface LevelSaveEntry {
 export interface SaveData {
   version: 1;
   highScore: number;
+  /**
+   * Presentation mode. Kept at the top level rather than inside `settings` so the Settings
+   * panel's `settings:changed` payload can never accidentally drop it.
+   */
+  visualMode: VisualMode;
+  /** Whether onboarding prompts have been shown, so they appear once and never nag on replays. */
+  tutorialSeen: boolean;
+  /** Chosen playable character. Cosmetic — never affects physics or difficulty. */
+  selectedCharacterId: string;
   levels: Record<string, LevelSaveEntry>;
   settings: {
     musicVolume: number;
@@ -22,12 +34,20 @@ const SAVE_KEY = 'ddr:save:v1';
 export const DEFAULT_SAVE: SaveData = {
   version: 1,
   highScore: 0,
+  visualMode: DEFAULT_VISUAL_MODE,
+  tutorialSeen: false,
+  selectedCharacterId: DEFAULT_CHARACTER_ID,
   levels: {
     level001: { bestScore: 0, bestTimeSeconds: null, unlocked: true },
     level002: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
     level003: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
     level004: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
     level005: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level006: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level007: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level008: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level009: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
+    level010: { bestScore: 0, bestTimeSeconds: null, unlocked: false },
   },
   settings: {
     musicVolume: 0.6,
@@ -49,10 +69,43 @@ export function loadSave(storage: Storage): SaveData {
   if (!raw) return DEFAULT_SAVE;
   try {
     const parsed = JSON.parse(raw);
-    return isValidSaveData(parsed) ? parsed : DEFAULT_SAVE;
+    if (!isValidSaveData(parsed)) return DEFAULT_SAVE;
+    // Saves written before theme modes existed (or with a corrupted value) fall back to the
+    // default rather than being discarded — progress and high scores are worth keeping.
+    return {
+      ...parsed,
+      visualMode: isVisualMode(parsed.visualMode) ? parsed.visualMode : DEFAULT_VISUAL_MODE,
+      tutorialSeen: parsed.tutorialSeen === true,
+      selectedCharacterId: isCharacterId(parsed.selectedCharacterId)
+        ? parsed.selectedCharacterId
+        : DEFAULT_CHARACTER_ID,
+    };
   } catch {
     return DEFAULT_SAVE;
   }
+}
+
+export function updateVisualMode(data: SaveData, visualMode: VisualMode): SaveData {
+  return { ...data, visualMode };
+}
+
+export function updateSelectedCharacter(data: SaveData, selectedCharacterId: string): SaveData {
+  return { ...data, selectedCharacterId };
+}
+
+/**
+ * Levels the player has actually completed, used to decide which characters are unlocked.
+ * A level only gets a best time when it is cleared, so that is the completion marker.
+ */
+export function completedLevelIds(data: SaveData): string[] {
+  return Object.entries(data.levels)
+    .filter(([, entry]) => entry.bestTimeSeconds !== null)
+    .map(([id]) => id);
+}
+
+/** Records that onboarding has been shown. UI may call this after dismissing the tutorial. */
+export function markTutorialSeen(data: SaveData): SaveData {
+  return { ...data, tutorialSeen: true };
 }
 
 export function writeSave(storage: Storage, data: SaveData): void {

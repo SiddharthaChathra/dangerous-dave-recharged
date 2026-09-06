@@ -19,12 +19,19 @@ export interface FallingPlatformDef extends PlatformDef {
   fallDelayMs: number;
 }
 
+/**
+ * Environmental hazards. All are lethal on contact and share one damage path; the kind only
+ * selects presentation (texture + particle flavour), never behaviour, so difficulty stays a
+ * property of placement rather than of which art was chosen.
+ */
+export type HazardKind = 'spike' | 'fire' | 'lava';
+
 export interface HazardDef {
   x: number;
   y: number;
   width: number;
   height: number;
-  kind: 'spike';
+  kind: HazardKind;
 }
 
 export type EnemyKind = 'patrol' | 'flying' | 'chase';
@@ -42,12 +49,6 @@ export interface CollectibleDef {
   kind: 'gem' | 'secret';
 }
 
-export interface CheckpointDef {
-  id: string;
-  x: number;
-  y: number;
-}
-
 export interface LevelData {
   id: string;
   name: string;
@@ -62,7 +63,16 @@ export interface LevelData {
   hazards: HazardDef[];
   enemies: EnemyDef[];
   collectibles: CollectibleDef[];
-  checkpoints: CheckpointDef[];
+  /**
+   * Gun pickups. Optional: a level without one is played unarmed, so enemies must be avoided
+   * rather than fought.
+   */
+  weaponPickups?: Vec2[];
+  /**
+   * The level's trophy. It must be collected before the exit door will open — the classic
+   * Dangerous Dave rule. Every level has exactly one.
+   */
+  trophy: Vec2;
   goal: Vec2;
   backgroundPalette: string;
 }

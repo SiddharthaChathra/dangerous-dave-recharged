@@ -4,8 +4,10 @@ import { Player } from '../entities/Player';
 import { MovingPlatform } from '../entities/MovingPlatform';
 import { FallingPlatform } from '../entities/FallingPlatform';
 import { Hazard } from '../entities/Hazard';
-import { Checkpoint } from '../entities/Checkpoint';
 import { Collectible } from '../entities/Collectible';
+import { WeaponPickup } from '../entities/WeaponPickup';
+import { Trophy } from '../entities/Trophy';
+import { ensureWeaponTextures, ensureObjectiveTextures } from '../systems/WeaponPlaceholders';
 import { EnemyBase } from '../entities/EnemyBase';
 import { PatrolEnemy } from '../entities/PatrolEnemy';
 import { FlyingEnemy } from '../entities/FlyingEnemy';
@@ -13,8 +15,8 @@ import { ChaseEnemy } from '../entities/ChaseEnemy';
 
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
-  'platforms', 'movingPlatforms', 'fallingPlatforms', 'hazards', 'enemies', 'collectibles', 'checkpoints',
-  'goal', 'backgroundPalette',
+  'platforms', 'movingPlatforms', 'fallingPlatforms', 'hazards', 'enemies', 'collectibles',
+  'trophy', 'goal', 'backgroundPalette',
 ];
 
 export interface LevelBuildResult {
@@ -24,8 +26,9 @@ export interface LevelBuildResult {
   fallingPlatforms: FallingPlatform[];
   hazards: Hazard[];
   enemies: EnemyBase[];
-  checkpoints: Checkpoint[];
   collectibles: Collectible[];
+  weaponPickups: WeaponPickup[];
+  trophy: Trophy;
   totalCollectibles: number;
   level: LevelData;
 }
@@ -62,9 +65,14 @@ export class LevelLoader {
     const fallingPlatforms = level.fallingPlatforms.map((def) => new FallingPlatform(scene, def));
 
     const hazards = level.hazards.map((def) => new Hazard(scene, def));
-    const checkpoints = level.checkpoints.map((def) => new Checkpoint(scene, def));
     const collectibles = level.collectibles.map((def) => new Collectible(scene, def));
     const totalCollectibles = level.collectibles.length;
+
+    // Placeholder art is generated only if the visual owner hasn't defined these textures.
+    ensureWeaponTextures(scene);
+    ensureObjectiveTextures(scene);
+    const trophy = new Trophy(scene, level.trophy);
+    const weaponPickups = (level.weaponPickups ?? []).map((def) => new WeaponPickup(scene, def));
 
     const enemies = level.enemies.map((def) => {
       if (def.kind === 'patrol') {
@@ -83,6 +91,6 @@ export class LevelLoader {
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, fallingPlatforms, hazards, enemies, checkpoints, collectibles, totalCollectibles, level };
+    return { player, staticGroup, movingPlatforms, fallingPlatforms, hazards, enemies, collectibles, weaponPickups, trophy, totalCollectibles, level };
   }
 }

@@ -9,3 +9,6 @@ test-results
 
 # Visual QA screenshots are regenerated on demand by tools/*.mjs
 qa-shots/
+
+# Playwright MCP artifacts (screenshots / console logs) from automated testing
+.playwright-mcp/
