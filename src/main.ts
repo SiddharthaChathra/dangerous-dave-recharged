@@ -249,6 +249,13 @@ gameEvents.on('life:lost', ({ livesRemaining, levelId }) => {
 });
 
 gameEvents.on('game:pause', () => {
+  // Only pause a level that is actually running. The HUD's pause button stays on screen during
+  // the between-levels corridor and the life-lost beat, when Play is already paused — pausing
+  // it again made Phaser warn ("Cannot pause non-running Scene Play") and, worse, opened the
+  // pause menu on top of a cutscene the player cannot act on.
+  const play = game.scene.getScene('Play');
+  if (!play || !play.scene.isActive()) return;
+
   game.scene.pause('Play');
   const pauseMenu = new PauseMenu(gameEvents);
   pauseMenu.mount(uiRoot);
@@ -325,22 +332,26 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
 
   cancelPendingTransition = gameEvents.once('transition:finished', () => {
     cancelPendingTransition = null;
-    showLevelCompleteCard();
+    if (message.isVictory) {
+      showLevelCompleteCard();
+    } else {
+      gameEvents.emit('game:started', { levelId: 'next-level' });
+    }
   });
 
   const showLevelCompleteCard = () => {
-  const levelCompleteScreen = new LevelCompleteScreen(gameEvents, {
-    score,
-    timeSeconds,
-    collected,
-    total,
-    rating,
-    nextLevelId,
-    // Counted from the campaign, so it stays right if levels are ever added or removed.
-    message,
-  });
-  levelCompleteScreen.mount(uiRoot);
-  showScreen(levelCompleteScreen);
+    const levelCompleteScreen = new LevelCompleteScreen(gameEvents, {
+      score,
+      timeSeconds,
+      collected,
+      total,
+      rating,
+      nextLevelId,
+      // Counted from the campaign, so it stays right if levels are ever added or removed.
+      message,
+    });
+    levelCompleteScreen.mount(uiRoot);
+    showScreen(levelCompleteScreen);
   };
 });
 

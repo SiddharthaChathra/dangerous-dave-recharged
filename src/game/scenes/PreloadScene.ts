@@ -50,6 +50,8 @@ export class PreloadScene extends Phaser.Scene {
     this.generateParticleTexture();
     this.generateParticleClassicTexture();
     
+    this.generateTransitionTextures();
+    
     // Add a slight delay before transitioning to ensure textures are fully registered
     this.time.delayedCall(50, () => {
       this.scene.start('MainMenu');
@@ -1323,5 +1325,68 @@ export class PreloadScene extends Phaser.Scene {
       lctx.fillRect(Math.floor(Math.random() * (w/8))*8, Math.floor(Math.random() * 2)*8, 8, 8);
     }
     lavaCanvas.refresh();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  TRANSITION SEQUENCE                                               */
+  /* ------------------------------------------------------------------ */
+  private generateTransitionTextures(): void {
+    // Premium dark metallic brick for Modern
+    const bw = 64, bh = 64;
+    const brickCanvas = this.textures.createCanvas('transition_brick', bw, bh)!;
+    const bctx = brickCanvas.getContext();
+    
+    const bGrad = bctx.createLinearGradient(0, 0, 0, bh);
+    bGrad.addColorStop(0, '#1e293b');
+    bGrad.addColorStop(1, '#0f172a');
+    bctx.fillStyle = bGrad;
+    bctx.fillRect(0, 0, bw, bh);
+    
+    bctx.strokeStyle = '#334155';
+    bctx.lineWidth = 2;
+    bctx.strokeRect(0, 0, bw, bh/2);
+    bctx.strokeRect(bw/2, bh/2, bw, bh/2);
+    bctx.strokeRect(-bw/2, bh/2, bw, bh/2);
+    brickCanvas.refresh();
+
+    // Neon blue brick for Classic
+    const cBrickCanvas = this.textures.createCanvas('classic__transition_brick', bw, bh)!;
+    const cbctx = cBrickCanvas.getContext();
+    cbctx.fillStyle = '#000088';
+    cbctx.fillRect(0, 0, bw, bh);
+    cbctx.fillStyle = '#0000ff';
+    cbctx.fillRect(0, 0, bw, 4);
+    cbctx.fillRect(0, bh/2, bw, 4);
+    cbctx.fillRect(0, 0, 4, bh/2);
+    cbctx.fillRect(bw/2, bh/2, 4, bh/2);
+    cBrickCanvas.refresh();
+
+    // Light ray mask (triangle gradient)
+    const rw = 256, rh = 256;
+    const rayCanvas = this.textures.createCanvas('transition_light_ray', rw, rh)!;
+    const rctx = rayCanvas.getContext();
+    
+    const rGrad = rctx.createLinearGradient(0, 0, rw, 0);
+    rGrad.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    rGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    
+    rctx.fillStyle = rGrad;
+    rctx.beginPath();
+    rctx.moveTo(0, rh/2);
+    rctx.lineTo(rw, 0);
+    rctx.lineTo(rw, rh);
+    rctx.closePath();
+    rctx.fill();
+    rayCanvas.refresh();
+
+    // Radial gradient background for Modern transition
+    const bgCanvas = this.textures.createCanvas('transition_bg_gradient', 512, 512)!;
+    const bgctx = bgCanvas.getContext();
+    const bgGrad = bgctx.createRadialGradient(256, 256, 0, 256, 256, 350);
+    bgGrad.addColorStop(0, '#1e1b4b'); // Deep indigo
+    bgGrad.addColorStop(1, '#020617'); // Dark slate
+    bgctx.fillStyle = bgGrad;
+    bgctx.fillRect(0, 0, 512, 512);
+    bgCanvas.refresh();
   }
 }

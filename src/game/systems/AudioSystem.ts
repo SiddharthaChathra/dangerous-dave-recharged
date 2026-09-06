@@ -1,4 +1,4 @@
-export type SfxName = 'jump' | 'collect' | 'damage' | 'enemyDefeat' | 'checkpoint' | 'levelComplete' | 'uiClick';
+export type SfxName = 'jump' | 'collect' | 'damage' | 'enemyDefeat' | 'checkpoint' | 'levelComplete' | 'uiClick' | 'textReveal';
 
 const SFX_PROFILE: Record<SfxName, { freq: number; durationSeconds: number; type: OscillatorType }> = {
   jump: { freq: 520, durationSeconds: 0.12, type: 'square' },
@@ -8,6 +8,7 @@ const SFX_PROFILE: Record<SfxName, { freq: number; durationSeconds: number; type
   checkpoint: { freq: 660, durationSeconds: 0.2, type: 'sine' },
   levelComplete: { freq: 990, durationSeconds: 0.4, type: 'sine' },
   uiClick: { freq: 400, durationSeconds: 0.06, type: 'square' },
+  textReveal: { freq: 720, durationSeconds: 0.08, type: 'sine' },
 };
 
 export class AudioSystem {
