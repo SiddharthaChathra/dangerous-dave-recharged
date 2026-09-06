@@ -16,7 +16,7 @@ const validLevel: LevelData = {
   hazards: [],
   enemies: [],
   collectibles: [{ x: 200, y: 460, kind: 'gem' }],
-  trophy: { x: 400, y: 460 },
+  key: { x: 400, y: 460 },
   goal: { x: 950, y: 460 },
   backgroundPalette: 'training',
 };

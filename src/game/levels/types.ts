@@ -69,10 +69,10 @@ export interface LevelData {
    */
   weaponPickups?: Vec2[];
   /**
-   * The level's trophy. It must be collected before the exit door will open — the classic
+   * The level's key. It must be collected before the exit door will open — the classic
    * Dangerous Dave rule. Every level has exactly one.
    */
-  trophy: Vec2;
+  key: Vec2;
   goal: Vec2;
   backgroundPalette: string;
 }

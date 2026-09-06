@@ -76,9 +76,17 @@ export type GameEvents = {
    * show a gun/ammo indicator without tracking gameplay state itself.
    */
   'weapon:changed': { hasGun: boolean };
-  /** The level's trophy was collected — the exit door is now unlocked. */
-  'trophy:collected': { x: number; y: number };
-  /** The player reached the exit without the trophy. Fired at most once per second. */
+  /**
+   * A level is now running, announced by the scene that loaded it.
+   *
+   * Distinct from `game:started`, whose `levelId` may be a sentinel ('next-level', 'restart',
+   * 'menu') that main.ts resolves privately. Anything that needs to know *which* level is
+   * actually being played must use this, or it will be reading a word that names no level.
+   */
+  'level:started': { levelId: string };
+  /** The level's key was collected — the exit door is now unlocked. */
+  'key:collected': { x: number; y: number };
+  /** The player reached the exit without the key. Fired at most once per second. */
   'door:locked': { x: number; y: number };
   /** The unlocked door is opening and the player is stepping through. */
   'door:opening': { levelId: string };

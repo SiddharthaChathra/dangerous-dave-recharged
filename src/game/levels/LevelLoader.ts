@@ -6,7 +6,7 @@ import { FallingPlatform } from '../entities/FallingPlatform';
 import { Hazard } from '../entities/Hazard';
 import { Collectible } from '../entities/Collectible';
 import { WeaponPickup } from '../entities/WeaponPickup';
-import { Trophy } from '../entities/Trophy';
+import { LevelKey } from '../entities/LevelKey';
 import { ensureWeaponTextures, ensureObjectiveTextures } from '../systems/WeaponPlaceholders';
 import { EnemyBase } from '../entities/EnemyBase';
 import { PatrolEnemy } from '../entities/PatrolEnemy';
@@ -16,7 +16,7 @@ import { ChaseEnemy } from '../entities/ChaseEnemy';
 const REQUIRED_FIELDS: (keyof LevelData)[] = [
   'id', 'name', 'widthPx', 'heightPx', 'parTimeSeconds', 'playerStart', 'groundY',
   'platforms', 'movingPlatforms', 'fallingPlatforms', 'hazards', 'enemies', 'collectibles',
-  'trophy', 'goal', 'backgroundPalette',
+  'key', 'goal', 'backgroundPalette',
 ];
 
 export interface LevelBuildResult {
@@ -28,7 +28,7 @@ export interface LevelBuildResult {
   enemies: EnemyBase[];
   collectibles: Collectible[];
   weaponPickups: WeaponPickup[];
-  trophy: Trophy;
+  levelKey: LevelKey;
   totalCollectibles: number;
   level: LevelData;
 }
@@ -71,7 +71,7 @@ export class LevelLoader {
     // Placeholder art is generated only if the visual owner hasn't defined these textures.
     ensureWeaponTextures(scene);
     ensureObjectiveTextures(scene);
-    const trophy = new Trophy(scene, level.trophy);
+    const levelKey = new LevelKey(scene, level.key);
     const weaponPickups = (level.weaponPickups ?? []).map((def) => new WeaponPickup(scene, def));
 
     const enemies = level.enemies.map((def) => {
@@ -91,6 +91,6 @@ export class LevelLoader {
     scene.physics.add.collider(player.sprite, staticGroup);
     for (const mp of movingPlatforms) scene.physics.add.collider(player.sprite, mp.sprite);
 
-    return { player, staticGroup, movingPlatforms, fallingPlatforms, hazards, enemies, collectibles, weaponPickups, trophy, totalCollectibles, level };
+    return { player, staticGroup, movingPlatforms, fallingPlatforms, hazards, enemies, collectibles, weaponPickups, levelKey, totalCollectibles, level };
   }
 }

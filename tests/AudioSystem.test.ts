@@ -80,4 +80,23 @@ describe('AudioSystem', () => {
     audio.playSfx('jump');
     expect(ctx.createOscillator).toHaveBeenCalled();
   });
+
+  it('plays a footstep, and plays it quietly', () => {
+    // The corridor walk lands a footfall every third of a second. At the volume of a jump that
+    // is a drum solo over the scene it is meant to be underscoring.
+    // A context each, because the fake hands out one shared gain node per context and the two
+    // sounds would otherwise pool their scheduled values together.
+    const peakGainOf = (name: 'footstep' | 'jump') => {
+      const ctx = fakeAudioContext();
+      const audio = new AudioSystem(ctx);
+      audio.setSfxVolume(1);
+      audio.playSfx(name);
+      const results = (ctx.createGain as ReturnType<typeof vi.fn>).mock.results;
+      const gain = results[results.length - 1].value;
+      return Math.max(...gain.gain.setValueAtTime.mock.calls.map((c: number[]) => c[0]));
+    };
+
+    expect(peakGainOf('footstep')).toBeGreaterThan(0);
+    expect(peakGainOf('footstep')).toBeLessThan(peakGainOf('jump'));
+  });
 });

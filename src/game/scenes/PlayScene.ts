@@ -12,7 +12,7 @@ import { EnemyBase } from '../entities/EnemyBase';
 import { ChaseEnemy } from '../entities/ChaseEnemy';
 import { Collectible } from '../entities/Collectible';
 import { WeaponPickup } from '../entities/WeaponPickup';
-import { Trophy } from '../entities/Trophy';
+import { LevelKey } from '../entities/LevelKey';
 import { Projectile } from '../entities/Projectile';
 import { InputController } from '../systems/InputController';
 import { gameEvents } from '../core/EventBus';
@@ -44,7 +44,7 @@ export class PlayScene extends Phaser.Scene {
   private enemies: EnemyBase[] = [];
   private collectibles: Collectible[] = [];
   private weaponPickups: WeaponPickup[] = [];
-  private trophy!: Trophy;
+  private levelKey!: LevelKey;
   /** Throttles the locked-door nudge so brushing the door doesn't spam feedback. */
   private lastLockedFeedbackAt = 0;
   /** Paces hazard ember emission so it doesn't spawn particles every frame. */
@@ -114,7 +114,7 @@ export class PlayScene extends Phaser.Scene {
     this.enemies = levelBuild.enemies;
     this.collectibles = levelBuild.collectibles;
     this.weaponPickups = levelBuild.weaponPickups;
-    this.trophy = levelBuild.trophy;
+    this.levelKey = levelBuild.levelKey;
     this.staticGroup = levelBuild.staticGroup;
 
     // The gun is per level attempt: a death re-stages the level, so it must be found again.
@@ -245,7 +245,7 @@ export class PlayScene extends Phaser.Scene {
     }
 
     // Set up the goal portal
-    // The exit is drawn locked until the trophy is collected. Which texture is shown is
+    // The exit is drawn locked until the key is collected. Which texture is shown is
     // driven by game state here, so the art can never disagree with whether it opens.
     const lockedKey = this.textures.exists('goal_door_locked') ? 'goal_door_locked' : 'goal_door';
     const goalRect = this.add.sprite(this.level.goal.x, this.level.goal.y - 40, lockedKey);
@@ -255,29 +255,10 @@ export class PlayScene extends Phaser.Scene {
       this.handleGoalTouched();
     });
 
-    // The trophy is the level's key: the exit stays shut until it is collected.
-    this.physics.add.overlap(this.player.sprite, this.trophy.sprite, () => {
-      if (!isPlayable(this.transition) || !this.trophy.collect()) return;
-      gameEvents.emit('trophy:collected', { x: this.trophy.sprite.x, y: this.trophy.sprite.y });
-      // Re-key through the skinner, not setTexture: the skinner has to learn the door's new
-      // base art, or the next visual-mode switch would redraw this unlocked door as locked.
-      this.skinner.rekey(this.goalZone, 'goal_door', getVisualMode());
-      this.fx.trophyCollectBurst(this.trophy.sprite.x, this.trophy.sprite.y);
-      this.fx.doorUnlockGlow(this.goalZone.x, this.goalZone.y);
-      audioSystem.playSfx('checkpoint');
-      this.fx.sparkle(this.trophy.sprite.x, this.trophy.sprite.y);
-      this.fx.scorePopup(this.trophy.sprite.x, this.trophy.sprite.y, 'DOOR UNLOCKED!', '#ffd700');
-      this.tweens.add({
-        targets: this.trophy.sprite,
-        y: this.trophy.sprite.y - 40,
-        alpha: 0,
-        scale: 1.6,
-        duration: 420,
-        ease: 'Back.In',
-        onComplete: () => this.trophy.sprite.setVisible(false),
-      });
-      // The door visibly reacts, so the cause and effect are unmistakable.
-      this.tweens.add({ targets: this.goalZone, scale: 1.15, duration: 180, yoyo: true });
+    // The key is what opens the exit: the door stays shut until it has been collected.
+    this.physics.add.overlap(this.player.sprite, this.levelKey.sprite, () => {
+      if (!isPlayable(this.transition) || !this.levelKey.collect()) return;
+      this.handleKeyCollected();
     });
 
     this.setUpVisualSkinning(levelBuild.staticGroup);
@@ -285,6 +266,10 @@ export class PlayScene extends Phaser.Scene {
     this.inputController = new InputController(this);
 
     audioSystem.startMusic();
+
+    // Announce the level that is actually running. main.ts starts levels through sentinels it
+    // resolves privately, so this scene is the only place that knows the real id for certain.
+    gameEvents.emit('level:started', { levelId: this.level.id });
 
     // Test seam: expose a deterministic way for Playwright/E2E tests to trigger the exact
     // same level-complete path a real goal-touch would trigger, without depending on
@@ -612,21 +597,80 @@ export class PlayScene extends Phaser.Scene {
   }
 
   /**
-   * The exit door. Locked until the trophy is collected: touching it early gives clear,
+   * Collecting the key.
+   *
+   * The order of the beats is the message. The key is taken, it flies up to the HUD where it
+   * stays for the rest of the level, and only *then* does the door change state — so the player
+   * watches the key cause the unlock, rather than seeing two things happen at once.
+   */
+  private handleKeyCollected(): void {
+    const keySprite = this.levelKey.sprite;
+    const { x, y } = keySprite;
+    // Captured before the flight: the idle spin leaves scaleX mid-swing, and a negative or
+    // near-zero scale would make the key vanish on the way up.
+    const startScale = Math.abs(keySprite.scaleY);
+
+    gameEvents.emit('key:collected', { x, y });
+    audioSystem.playSfx('checkpoint');
+    this.fx.keyCollectBurst(x, y);
+    this.fx.sparkle(x, y);
+
+    // Flies to the HUD's key slot. The HUD is DOM sitting above the canvas, so the target is
+    // the matching point in the camera's *current* view — re-read every frame, because the
+    // camera is usually still following the player through the pickup and a target sampled
+    // once at collection would leave the key drifting off to wherever the corner used to be.
+    keySprite.setDepth(60);
+    const flight = { t: 0 };
+    this.tweens.add({
+      targets: flight,
+      t: 1,
+      duration: 560,
+      ease: 'Cubic.easeIn',
+      onUpdate: () => {
+        const view = this.cameras.main.worldView;
+        const targetX = view.x + view.width * 0.2;
+        const targetY = view.y + 46;
+        keySprite.setPosition(
+          Phaser.Math.Linear(x, targetX, flight.t),
+          Phaser.Math.Linear(y, targetY, flight.t),
+        );
+        keySprite.setScale(Phaser.Math.Linear(startScale, startScale * 0.5, flight.t));
+      },
+      onComplete: () => {
+        keySprite.setVisible(false);
+        this.unlockExitDoor();
+      },
+    });
+  }
+
+  /** The exit going from locked to unlocked, in art as well as in state. */
+  private unlockExitDoor(): void {
+    // Re-key through the skinner, not setTexture: the skinner has to learn the door's new
+    // base art, or the next visual-mode switch would redraw this unlocked door as locked.
+    this.skinner.rekey(this.goalZone, 'goal_door', getVisualMode());
+    this.fx.doorUnlockGlow(this.goalZone.x, this.goalZone.y);
+    this.fx.scorePopup(this.goalZone.x, this.goalZone.y - 34, 'DOOR UNLOCKED!', '#ffd700');
+    audioSystem.playSfx('collect');
+    // The door visibly reacts, so the cause and effect are unmistakable.
+    this.tweens.add({ targets: this.goalZone, scale: 1.15, duration: 180, yoyo: true });
+  }
+
+  /**
+   * The exit door. Locked until the key is collected: touching it early gives clear,
    * repeatable feedback and nothing else — there is no way to slip past it, because completion
    * is gated on game state rather than on collision geometry.
    */
   private handleGoalTouched(): void {
     if (!canTriggerExit(this.transition)) return;
 
-    if (!this.trophy.isCollected) {
+    if (!this.levelKey.isCollected) {
       const now = this.time.now;
       if (now - this.lastLockedFeedbackAt < 1000) return;
       this.lastLockedFeedbackAt = now;
 
       gameEvents.emit('door:locked', { x: this.goalZone.x, y: this.goalZone.y });
       audioSystem.playSfx('damage');
-      this.fx.scorePopup(this.goalZone.x, this.goalZone.y - 30, 'LOCKED — FIND THE TROPHY', '#ff6b6b');
+      this.fx.scorePopup(this.goalZone.x, this.goalZone.y - 30, 'LOCKED — FIND THE KEY', '#ff6b6b');
       // A short rattle: the door refuses, rather than silently doing nothing.
       this.tweens.add({ targets: this.goalZone, x: this.goalZone.x + 4, duration: 60, yoyo: true, repeat: 3 });
       this.cameraController.shake();

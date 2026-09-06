@@ -149,9 +149,19 @@ let cancelPendingTransition: (() => void) | null = null;
 function abortPendingTransition(game: Phaser.Game): void {
   cancelPendingTransition?.();
   cancelPendingTransition = null;
+  setCutsceneState(false);
   if (game.scene.getScene('LevelTransition')?.scene.isActive()) {
     game.scene.stop('LevelTransition');
   }
+}
+
+/**
+ * Marks the document while the between-levels corridor is playing. CSS uses it to clear the
+ * persistent on-screen chrome — the visual-mode toggle and the touch pad — out of a shot the
+ * player cannot interact with anyway. The HUD hides itself on `level:complete`.
+ */
+function setCutsceneState(playing: boolean): void {
+  document.body.classList.toggle('ddr-cutscene', playing);
 }
 
 /** Sentinels that continue the current run rather than starting a fresh one. */
@@ -316,6 +326,7 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
   // once that finishes (or the player skips it). Progression is already persisted above, so a
   // skipped or interrupted interstitial can never cost the player their completed level.
   const message = completionMessage(levelId);
+  setCutsceneState(true);
   game.scene.pause('Play');
   game.scene.start('LevelTransition', {
     levelId,
@@ -332,6 +343,7 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
 
   cancelPendingTransition = gameEvents.once('transition:finished', () => {
     cancelPendingTransition = null;
+    setCutsceneState(false);
     if (message.isVictory) {
       showLevelCompleteCard();
     } else {

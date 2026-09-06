@@ -44,7 +44,7 @@ export const level003: LevelData = {
   ],
   weaponPickups: [{ x: 240, y: 602 }],
   // Collect this before the exit door will open.
-  trophy: { x: 1780, y: 460 },
+  key: { x: 1780, y: 460 },
   goal: { x: 2960, y: 600 },
   backgroundPalette: 'neon',
 };

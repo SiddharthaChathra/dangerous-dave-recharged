@@ -260,7 +260,7 @@ export class ParticleFX {
   }
 
   /** The level key is taken and the exit unlocks — this should feel like a reward. */
-  trophyCollectBurst(x: number, y: number): void {
+  keyCollectBurst(x: number, y: number): void {
     const isClassic = getVisualMode() === 'classic';
     
     this.burst(x, y, { 

@@ -1,4 +1,4 @@
-export type SfxName = 'jump' | 'collect' | 'damage' | 'enemyDefeat' | 'checkpoint' | 'levelComplete' | 'uiClick' | 'textReveal';
+export type SfxName = 'jump' | 'collect' | 'damage' | 'enemyDefeat' | 'checkpoint' | 'levelComplete' | 'uiClick' | 'textReveal' | 'footstep';
 
 const SFX_PROFILE: Record<SfxName, { freq: number; durationSeconds: number; type: OscillatorType }> = {
   jump: { freq: 520, durationSeconds: 0.12, type: 'square' },
@@ -9,6 +9,7 @@ const SFX_PROFILE: Record<SfxName, { freq: number; durationSeconds: number; type
   levelComplete: { freq: 990, durationSeconds: 0.4, type: 'sine' },
   uiClick: { freq: 400, durationSeconds: 0.06, type: 'square' },
   textReveal: { freq: 720, durationSeconds: 0.08, type: 'sine' },
+  footstep: { freq: 90, durationSeconds: 0.09, type: 'sine' },
 };
 
 export class AudioSystem {
@@ -99,6 +100,21 @@ export class AudioSystem {
         gain.connect(this.context.destination);
         osc.start(t);
         osc.stop(t + dur);
+    } else if (name === 'footstep') {
+        // A soft, low heel-thud. Deliberately near the floor of audibility: the corridor walk
+        // lands one of these every third of a second, so it has to sit under the scene rather
+        // than on top of it.
+        const osc = this.context.createOscillator();
+        const gain = this.context.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(120, t);
+        osc.frequency.exponentialRampToValueAtTime(55, t + 0.09);
+        gain.gain.setValueAtTime(this.sfxVolume * 0.07, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+        osc.connect(gain);
+        gain.connect(this.context.destination);
+        osc.start(t);
+        osc.stop(t + 0.11);
     } else {
         const profile = SFX_PROFILE[name];
         const oscillator = this.context.createOscillator();

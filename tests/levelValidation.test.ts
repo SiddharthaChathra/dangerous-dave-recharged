@@ -83,24 +83,24 @@ describe('the reach model matches the engine physics', () => {
   });
 });
 
-describe('trophy / locked-door rules', () => {
-  it('every level has a trophy, since the exit cannot open without one', () => {
+describe('key / locked-door rules', () => {
+  it('every level has a key, since the exit cannot open without one', () => {
     for (const id of LEVEL_ORDER) {
-      expect(LEVELS[id].trophy, `${id} is missing a trophy`).toBeDefined();
+      expect(LEVELS[id].key, `${id} is missing a key`).toBeDefined();
     }
   });
 
-  it('every trophy is reachable — an unreachable one makes the level unwinnable', () => {
+  it('every key is reachable — an unreachable one makes the level unwinnable', () => {
     for (const id of LEVEL_ORDER) {
-      const errors = validateLevel(LEVELS[id]).filter((e) => e.includes('trophy'));
+      const errors = validateLevel(LEVELS[id]).filter((e) => e.includes('key'));
       expect(errors, `${id}: ${errors.join('; ')}`).toEqual([]);
     }
   });
 
-  it('the trophy is not sitting on top of the exit, so it forces real traversal', () => {
+  it('the key is not sitting on top of the exit, so it forces real traversal', () => {
     for (const id of LEVEL_ORDER) {
-      const { trophy, goal } = LEVELS[id];
-      expect(Math.abs(trophy.x - goal.x), `${id}: trophy is at the door`).toBeGreaterThan(200);
+      const { key, goal } = LEVELS[id];
+      expect(Math.abs(key.x - goal.x), `${id}: key is at the door`).toBeGreaterThan(200);
     }
   });
 

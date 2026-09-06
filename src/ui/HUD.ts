@@ -13,6 +13,7 @@ export class HUD {
   private levelNameEl!: HTMLElement;
   private progressFillEl!: HTMLElement;
   private leftPanelEl!: HTMLElement;
+  private keyEl!: HTMLElement;
   // Declared as real fields rather than assigned through `this as any` casts, which tripped
   // the no-explicit-any lint rule and broke CI. Behaviour is unchanged.
   private popupEl: HTMLElement | null = null;
@@ -45,6 +46,9 @@ export class HUD {
         <div class="level-name" id="hud-level-name" data-hud="level-name">TRAINING GROUNDS</div>
         <div class="progress-track">
           <div class="progress-fill" id="hud-progress-fill"></div>
+        </div>
+        <div class="hud-key" id="hud-key" data-hud="key" data-key-state="required">
+          <span class="hud-key__icon">🔑</span><span class="hud-key__label">KEY REQUIRED</span>
         </div>
       </div>
 
@@ -88,6 +92,7 @@ export class HUD {
     this.levelNameEl = container.querySelector('#hud-level-name')!;
     this.progressFillEl = container.querySelector('#hud-progress-fill')!;
     this.leftPanelEl = container.querySelector('#hud-left-panel')!;
+    this.keyEl = container.querySelector('#hud-key')!;
     
     const tutorialEl = container.querySelector('#hud-tutorial') as HTMLElement;
     const tutorialDismiss = container.querySelector('#hud-tutorial-dismiss') as HTMLButtonElement;
@@ -124,6 +129,19 @@ export class HUD {
         if (kind === 'secret') {
           this.showPopup(`SECRET COLLECTIBLE! +${value}`, 'var(--ddr-accent-secondary)');
         }
+      }),
+      // The key is the level's gate, so the HUD always states which side of it the player is
+      // on. Driven by the game's own event rather than inferred, so it cannot drift out of
+      // step with whether the door will actually open.
+      this.bus.on('key:collected', () => {
+        this.setKeyState('acquired');
+        this.showPopup('🔑 KEY ACQUIRED — EXIT UNLOCKED', 'var(--ddr-warning, #ffd700)');
+      }),
+      // The name comes from the level that actually loaded, never from `game:started`, whose
+      // id may be a sentinel that names no level at all.
+      this.bus.on('level:started', ({ levelId }) => {
+        const level = LEVELS[levelId];
+        if (level) this.levelNameEl.textContent = level.name;
       }),
       this.bus.on('lives:changed', ({ lives }) => {
         this.livesEl.textContent = String(lives);
@@ -162,6 +180,7 @@ export class HUD {
           }
           // Reset progress bar
           this.progressFillEl.style.width = '0%';
+          this.setKeyState('required');
           this.healthFillEl.style.width = '100%';
           this.leftPanelEl.classList.remove('health-low');
           this.show();
@@ -173,11 +192,24 @@ export class HUD {
           }
         }
       }),
+      // The corridor that follows a clear is a cutscene, and the HUD has nothing left to
+      // report until the next level begins. It comes back on the next 'game:started'.
+      this.bus.on('level:complete', () => {
+        this.hide();
+        this.tutorialEl?.classList.add('hud--hidden');
+      }),
       // Fired after progression is actually written to storage, so the message can't lie.
       this.bus.on('progress:saved', () => {
           this.showPopup('GAME SAVED', 'var(--ddr-success)');
       })
     );
+  }
+
+  private setKeyState(state: 'required' | 'acquired'): void {
+    if (!this.keyEl) return;
+    this.keyEl.setAttribute('data-key-state', state);
+    const label = this.keyEl.querySelector('.hud-key__label');
+    if (label) label.textContent = state === 'acquired' ? 'KEY ACQUIRED' : 'KEY REQUIRED';
   }
 
   private showPopup(text: string, color: string): void {

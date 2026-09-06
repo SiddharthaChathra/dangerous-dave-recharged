@@ -17,46 +17,112 @@ export const WEAPON_PICKUP_TEXTURE = 'weapon_pickup';
  * while gameplay stays playable in the meantime.
  */
 /**
- * Placeholder art for the trophy and the fire/lava hazards, on the same terms as the weapon
+ * Placeholder art for the level key, the locked door and the fire/lava hazards, on the same
+ * terms as the weapon
  * textures: generated only when the key is absent, so defining them in PreloadScene replaces
  * these outright and this becomes a no-op.
  */
 export function ensureObjectiveTextures(scene: Phaser.Scene): void {
-  if (!scene.textures.exists('trophy')) {
-    const w = 26;
-    const h = 30;
-    const canvas = scene.textures.createCanvas('trophy', w, h);
+  // The level key. Drawn side-on so the turn animation — which flips it through zero width —
+  // reads as a key rotating about its shaft rather than a card spinning.
+  if (!scene.textures.exists('level_key')) {
+    const w = 40;
+    const h = 22;
+    const canvas = scene.textures.createCanvas('level_key', w, h);
     const ctx = canvas?.getContext();
     if (ctx) {
-      ctx.fillStyle = '#ffd700';
-      ctx.fillRect(5, 3, 16, 12); // cup
-      ctx.fillRect(11, 15, 4, 8); // stem
-      ctx.fillRect(7, 23, 12, 4); // base
-      ctx.fillStyle = '#fff3b0';
-      ctx.fillRect(7, 5, 4, 8); // highlight
+      const gold = ctx.createLinearGradient(0, 2, 0, h - 2);
+      gold.addColorStop(0, '#fff2ba');
+      gold.addColorStop(0.45, '#ffcf3d');
+      gold.addColorStop(1, '#b8791a');
+
+      ctx.strokeStyle = gold;
+      ctx.fillStyle = gold;
+
+      // Bow: a ring, left. Drawn as a stroke so the hole stays genuinely transparent.
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(10, h / 2, 7, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Shaft and teeth.
+      ctx.fillRect(16, h / 2 - 2.5, 21, 5);
+      ctx.fillRect(28, h / 2 + 2, 4, 6);
+      ctx.fillRect(34, h / 2 + 2, 3, 5);
+
+      // Specular highlight along the top edge — what makes it read as metal rather than paint.
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+      ctx.fillRect(17, h / 2 - 2.5, 19, 1.5);
+      ctx.beginPath();
+      ctx.arc(10, h / 2, 7, Math.PI * 1.15, Math.PI * 1.6);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.stroke();
       canvas!.refresh();
     }
   }
 
-  // A locked variant of the exit door, swapped back to `goal_door` once the trophy is taken.
-  if (!scene.textures.exists('goal_door_locked') && scene.textures.exists('goal_door')) {
-    const src = scene.textures.get('goal_door').getSourceImage() as HTMLCanvasElement;
-    const canvas = scene.textures.createCanvas('goal_door_locked', src.width, src.height);
+  // Classic mode's key: the same silhouette on a pixel grid, flat fills, hard shadow.
+  if (!scene.textures.exists('classic__level_key')) {
+    const w = 40;
+    const h = 22;
+    const canvas = scene.textures.createCanvas('classic__level_key', w, h);
     const ctx = canvas?.getContext();
     if (ctx) {
-      ctx.drawImage(src, 0, 0);
-      // Red padlock so "locked" reads at a glance rather than needing a caption.
-      const cx = src.width / 2;
-      const cy = src.height / 2;
-      ctx.fillStyle = '#ff3b3b';
-      ctx.fillRect(cx - 7, cy - 2, 14, 12);
-      ctx.strokeStyle = '#ff3b3b';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(cx, cy - 2, 5, Math.PI, 0);
-      ctx.stroke();
+      ctx.imageSmoothingEnabled = false;
+      const draw = (colour: string, dx: number, dy: number) => {
+        ctx.fillStyle = colour;
+        // Bow, as a square ring of blocks.
+        ctx.fillRect(3 + dx, 5 + dy, 14, 4);
+        ctx.fillRect(3 + dx, 13 + dy, 14, 4);
+        ctx.fillRect(3 + dx, 5 + dy, 4, 12);
+        ctx.fillRect(13 + dx, 5 + dy, 4, 12);
+        // Shaft and teeth.
+        ctx.fillRect(17 + dx, 9 + dy, 20, 4);
+        ctx.fillRect(28 + dx, 13 + dy, 4, 5);
+        ctx.fillRect(34 + dx, 13 + dy, 3, 4);
+      };
+      draw('#8a5a10', 2, 2);
+      draw('#ffd700', 0, 0);
+      ctx.fillStyle = '#fff6c9';
+      ctx.fillRect(17, 9, 18, 2);
       canvas!.refresh();
     }
+  }
+
+  // A locked variant of the exit door for every skin that has a door, swapped back to the
+  // unlocked art once the key is taken. Generated per mode so classic mode's locked door is
+  // its own art rather than silently falling back to the modern one.
+  for (const prefix of ['', 'classic__']) {
+    const base = `${prefix}goal_door`;
+    const locked = `${prefix}goal_door_locked`;
+    if (scene.textures.exists(locked) || !scene.textures.exists(base)) continue;
+    const src = scene.textures.get(base).getSourceImage() as HTMLCanvasElement;
+    const canvas = scene.textures.createCanvas(locked, src.width, src.height);
+    const ctx = canvas?.getContext();
+    if (!ctx) continue;
+    ctx.drawImage(src, 0, 0);
+
+    // A padlock hanging on the door, so "locked" reads at a glance without needing a caption,
+    // and so the moment it disappears is legible as the door being opened by the key.
+    const cx = src.width / 2;
+    const cy = src.height / 2;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.fillRect(cx - 10, cy - 9, 20, 24);
+    ctx.strokeStyle = '#ff5b5b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy - 2, 5, Math.PI, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#ff3b3b';
+    ctx.fillRect(cx - 7, cy - 2, 14, 12);
+    // Keyhole: the shape of the thing the player is looking for.
+    ctx.fillStyle = '#7a0f0f';
+    ctx.beginPath();
+    ctx.arc(cx, cy + 2, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - 1, cy + 2, 2, 5);
+    canvas!.refresh();
   }
 
   // The between-levels corridor's brick, matching the original's bright blue passage. Kept

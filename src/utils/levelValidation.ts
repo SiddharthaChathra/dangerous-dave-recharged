@@ -168,18 +168,18 @@ export function validateLevel(level: LevelData, limits: JumpLimits = JUMP_LIMITS
       }
     }
 
-    // The trophy unlocks the exit, so an unreachable trophy makes the level unwinnable — a
+    // The key unlocks the exit, so an unreachable key makes the level unwinnable — a
     // strictly worse failure than an unreachable bonus gem.
-    const trophySurface = surfaceUnder(level.trophy.x, level.trophy.y, surfaces);
-    if (!trophySurface) {
-      errors.push(`${level.id}: trophy at (${level.trophy.x}, ${level.trophy.y}) is not above any platform`);
-    } else if (!reached.has(trophySurface)) {
-      errors.push(`${level.id}: trophy is unreachable, so the exit could never be unlocked`);
+    const keySurface = surfaceUnder(level.key.x, level.key.y, surfaces);
+    if (!keySurface) {
+      errors.push(`${level.id}: key at (${level.key.x}, ${level.key.y}) is not above any platform`);
+    } else if (!reached.has(keySurface)) {
+      errors.push(`${level.id}: key is unreachable, so the exit could never be unlocked`);
     }
   }
 
-  if (!level.trophy) {
-    errors.push(`${level.id}: has no trophy, so the exit door could never be unlocked`);
+  if (!level.key) {
+    errors.push(`${level.id}: has no key, so the exit door could never be unlocked`);
   }
 
   const withinBounds = (x: number, y: number, what: string) => {
