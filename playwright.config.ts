@@ -2,7 +2,10 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  timeout: 30_000,
+  // Headroom for a slower CI runner. The smoke test itself takes ~6s locally; it skips the
+  // between-levels corridor rather than waiting it out, precisely so its duration does not
+  // depend on the frame rate (see the note in smoke.spec.ts).
+  timeout: 60_000,
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173',
     port: 4173,
