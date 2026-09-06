@@ -1,135 +1,183 @@
+<div align="center">
+
 # Dangerous Dave: Recharged
 
-A modern, original browser-based side-scrolling platformer inspired by the
-classic run/jump/collect/avoid-hazards formula of retro platform games.
-This is a wholly new implementation — original code, procedural art, 
-procedural audio, levels, and branding. It does not include any source code, 
-sprites, sounds, levels, or branding from the original 1988 "Dangerous Dave."
+**A browser platformer about a locked door, a golden key, and three lives.**
 
-## 🎮 Features
+[![Play now](https://img.shields.io/badge/▶_Play_now-in_your_browser-00f0ff?style=for-the-badge)](https://siddharthachathra.github.io/dangerous-dave-recharged/)
+[![CI](https://github.com/SiddharthaChathra/dangerous-dave-recharged/actions/workflows/ci.yml/badge.svg)](https://github.com/SiddharthaChathra/dangerous-dave-recharged/actions/workflows/ci.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Phaser 3](https://img.shields.io/badge/Phaser-3.90-2ecc71)](https://phaser.io/)
 
-- **5 original levels** with distinct visual themes, increasing difficulty, and unique mechanics
-- Responsive platforming with **coyote time** and **jump buffering** for forgiving controls
-- **3 enemy archetypes** (patrol, flying, chase) with idle/patrol/chase/hurt/dead state machines
-- **Moving platforms**, **falling platforms**, **hazards** (spikes), and **checkpoints**
-- Score, lives, collectibles (gems + secrets), and **performance rating** (gold/silver/bronze)
-- **Procedural Web Audio** sound effects and ambient music — no sample files
-- **Procedural pixel-art** sprites generated at runtime — no external image assets
-- **Dark/light themes**, **reduced-motion** support, keyboard + touch controls
-- **Level select** with unlock progression and best-score tracking
-- Local high-score and settings persistence (no account, no backend)
-- **Parallax scrolling** backgrounds with environmental decorations
-- **Particle effects**: dust, jump burst, landing, sparkle, enemy defeat, checkpoint, level-complete
-- **Camera system**: smooth follow, dead-zone, look-ahead, shake on damage
-- **Squash & stretch** player animations (idle, run, jump, fall, hurt, death)
+### ▶ **[siddharthachathra.github.io/dangerous-dave-recharged](https://siddharthachathra.github.io/dangerous-dave-recharged/)**
 
-## 🎯 Levels
+No install, no account, no backend. It runs in the tab you already have open.
 
-| # | Name | Theme | New Mechanics |
-|---|------|-------|--------------|
-| 1 | Training Grounds | Forest | Movement, jumping, basic gaps |
-| 2 | Industrial Ruins | Factory | Moving platforms, falling platforms, flying enemies |
-| 3 | Neon Caverns | Underground neon | Chase enemies, vertical platforming |
-| 4 | Sky Fortress | Sky/cloud | Heavy verticality, multiple platform types, all enemy types |
-| 5 | Final Challenge | Lava/danger | Precision jumps, combat arenas, spike gauntlets, tower climbs |
+<img src="docs/screenshots/gameplay.png" alt="Dangerous Dave: Recharged gameplay — the player beside the golden key, with the HUD showing KEY REQUIRED" width="100%">
 
-## 🎮 Controls
+</div>
+
+---
+
+## The idea
+
+Ten hand-built levels. Every one of them holds a **key**, and the exit door stays locked until
+you're holding it — so no level can be finished by sprinting to the right. Find the key, open
+the door, walk the corridor to the next level.
+
+You get **three lives for the whole run**. There are no checkpoints: a death costs one life and
+puts you back at the start of the level you were on, never further back than that. Run out and
+it's Game Over, and the campaign starts again from level 1.
+
+Everything you see and hear is generated in code — every sprite, every sound. There is not a
+single `.png` or `.mp3` in this repository.
+
+---
+
+## Screenshots
+
+| The between-levels corridor | Character roster |
+|---|---|
+| <img src="docs/screenshots/corridor.png" alt="The corridor between levels: the cleared level's door on the left, the next level's door on the right, and the character walking between them" width="100%"> | <img src="docs/screenshots/roster.png" alt="The character roster screen with a rotating holographic showcase" width="100%"> |
+| Clear a level and you walk it — an articulated gait, not a sliding sprite. The doors are labelled with where you've been and where you're going. | Four characters, unlocked by clearing levels. They are cosmetic only: identical hitbox, speed and jump. |
+
+| Main menu | Classic mode |
+|---|---|
+| <img src="docs/screenshots/menu.png" alt="Main menu with level select and the selected character on a holographic pedestal" width="100%"> | <img src="docs/screenshots/gameplay-classic.png" alt="The same level rendered in Classic Dave mode" width="100%"> |
+| The hero on the menu is whichever character you've picked, lit in their own colour. | Press **T** any time — mid-jump if you like — to repaint the entire game in its retro skin. |
+
+---
+
+## Two looks, one game
+
+There's a switch in the corner marked **CURRENT VISUAL / CLASSIC DAVE**, and it works *during
+play*. Toggling it swaps every texture in the world and leaves everything else exactly where it
+was: your position, velocity, score, lives, timer, the enemies' patrol state, which gems you've
+already collected.
+
+That's the rule the code is built around — the two modes are a skin, never a different game.
+Difficulty must not depend on which one you prefer.
+
+---
+
+## Controls
 
 | Action | Keyboard | Touch |
-|--------|----------|-------|
-| Move | Arrow keys or A/D | On-screen D-pad |
-| Jump | Up arrow | Jump button |
-| Pause | Escape | HUD pause button |
+|---|---|---|
+| Move | `←` `→` or `A` `D` | On-screen D-pad |
+| Jump | `↑`, `W` or `Space` | Jump button |
+| Fire (once armed) | `F` or `Ctrl` | — |
+| Switch visual mode | `T` | Toggle button |
+| Pause | `Esc` | Pause button |
 
-## 🛠 Tech Stack
+Jumping is deliberately forgiving: there's **coyote time** (a few frames of grace after you walk
+off a ledge) and **jump buffering** (a jump pressed just before you land still fires).
 
-- **Runtime**: [Phaser 3](https://phaser.io/) (Arcade Physics, Canvas/WebGL)
-- **Language**: TypeScript
-- **Bundler**: Vite
-- **Testing**: Vitest (unit), Playwright (E2E)
-- **UI**: Plain HTML/CSS DOM overlays + Phaser canvas (no React)
-- **Fonts**: [Orbitron](https://fonts.google.com/specimen/Orbitron) (display), [Inter](https://fonts.google.com/specimen/Inter) (body)
-- **Audio**: Procedural Web Audio API (no sample files)
-- **Art**: Procedural canvas-generated pixel art
-- **Backend**: None — fully static, deployable to GitHub Pages
+---
 
-## 🏗 Architecture
+## The campaign
+
+| # | Level | Setting | Par |
+|---|---|---|---|
+| 1 | Training Grounds | Training | 75s |
+| 2 | Industrial Ruins | Industrial | 90s |
+| 3 | Neon Caverns | Neon | 110s |
+| 4 | Sky Fortress | Sky | 120s |
+| 5 | The Gauntlet | Fire & lava | 150s |
+| 6 | Collapsing Foundry | Factory | 135s |
+| 7 | The High Road | Neon | 150s |
+| 8 | Sentry Shafts | Sky | 160s |
+| 9 | Needlepoint | Neon | 175s |
+| 10 | Dave's Last Stand | Fire & lava | 210s |
+
+Levels introduce their mechanics in order: basic gaps, then moving and falling platforms, then
+chase enemies and verticality, then fire and lava from level 3 onward.
+
+**Every level is provably completable.** A test walks each one as a physics simulation — using
+the real jump velocity, gravity and run speed — and fails the build if the key, the exit or any
+collectible ever becomes unreachable. Difficulty comes from placement, never from geometry you
+cannot cross.
+
+---
+
+## What's in it
+
+- **10 levels**, each gated by a key the exit door won't open without
+- **A between-levels corridor** with a procedurally animated walk cycle
+- **4 playable characters**, unlocked by clearing levels — cosmetic only, by design
+- **3 enemy types** — patrol, flying and chase — each with its own state machine
+- **Hazards**: spikes, fire and lava, with damage boxes inset from the art so a graze doesn't kill
+- **Moving and falling platforms**, and optional weapon pickups
+- **Procedural art and Web Audio** — no image or sound files anywhere in the repo
+- **Parallax backgrounds**, particle effects, camera follow with dead-zone, look-ahead and shake
+- **Local save**: level unlocks, best scores and settings, in `localStorage`
+- **Accessibility**: reduced-motion support, dark/light theming, full touch controls
+
+---
+
+## Running it locally
+
+```bash
+npm install
+npm run dev          # http://localhost:5173/dangerous-dave-recharged/
+```
+
+```bash
+npm run build        # production bundle into dist/
+npm run preview      # serve that bundle
+```
+
+### Tests
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint
+npm run test         # 269 unit tests (Vitest)
+npm run e2e          # Playwright browser smoke test
+```
+
+All four run in CI on every push to `main`, and the site only deploys if they pass.
+
+Some of the suite is unusual, and deliberately so. Beyond ordinary unit tests there are guards
+for the kinds of bug that typechecking cannot catch: that every level stays completable, that
+the corridor can always be skipped and always ends, that the frame-rate cap stays tied to the
+physics constant it's meant to match, and that every object in the world is registered for
+re-skinning when the visual mode changes.
+
+---
+
+## How it's built
+
+| | |
+|---|---|
+| **Engine** | Phaser 3.90 (Arcade Physics) |
+| **Language** | TypeScript, `strict` |
+| **Build** | Vite 5 |
+| **Tests** | Vitest + Playwright |
+| **Hosting** | GitHub Pages, deployed by GitHub Actions |
+
+The game canvas and the DOM UI are kept strictly apart and speak through one typed event bus.
+Phaser owns the world; the HUD, menus and modals are plain DOM. Nothing reaches across — which
+is what lets the interface be restyled without touching gameplay, and the gameplay be changed
+without breaking the interface.
 
 ```
 src/
   game/
-    core/           EventBus, GameConfig, constants, audio singleton
-    entities/       Player, enemies (Patrol/Flying/Chase), platforms, collectibles
-    levels/         Level data, loader, registry, parallax
-    scenes/         Boot → Preload → MainMenu → Play
-    systems/        InputController, CameraController, AudioSystem, ParticleFX, SaveSystem
-  ui/
-    styles/         Design tokens, base, HUD, menus, touch controls
-    *.ts            DOM overlay components (MainMenu, HUD, PauseMenu, Settings, etc.)
-  utils/            Pure-function physics, collision, scoring, lives reducer
-tests/              Vitest unit tests
-e2e/                Playwright E2E smoke test
+    core/        event bus, config, constants, visual mode
+    entities/    player, enemies, platforms, hazards, the key, the corridor walker
+    levels/      the ten levels as data, plus the loader
+    scenes/      boot, preload, menu, play, level transition
+    systems/     audio, camera, input, particles, save, visual skinner
+  ui/            HUD, menus, roster, overlays (DOM)
+  utils/         physics, scoring, lives, level validation, corridor geometry
 ```
 
-Game simulation and rendering live in `src/game/` (Phaser scenes, entities, systems).
-DOM UI lives in `src/ui/`. Both sides communicate only through `src/game/core/EventBus.ts`.
+---
 
-## 💻 Local Development
+## About the name
 
-```bash
-npm install
-npm run dev
-```
-
-## 🧪 Testing
-
-```bash
-npm run test       # Vitest unit tests (62 tests)
-npm run typecheck   # TypeScript type-checking
-npm run lint        # ESLint
-npm run e2e         # Playwright E2E smoke test (requires build + preview)
-```
-
-## 📦 Production Build
-
-```bash
-npm run build
-npm run preview
-```
-
-## 🚀 Deployment
-
-Pushing to `main` runs GitHub Actions CI (lint, typecheck, test, build, E2E)
-and deploys the production build to GitHub Pages via `.github/workflows/ci.yml`.
-
-**Live URL**: [`https://siddharthachathra.github.io/dangerous-dave-recharged/`](https://siddharthachathra.github.io/dangerous-dave-recharged/)
-
-## ⚡ Performance
-
-Targets 60 FPS via Phaser's Arcade Physics and Canvas/WebGL rendering.
-Particle effects are capped in count and disabled under reduced-motion.
-Object pooling used for particles. No unnecessary DOM updates during gameplay.
-
-## ♿ Accessibility
-
-- Keyboard-navigable menus with visible focus states
-- WCAG AA contrast in both dark and light themes
-- `prefers-reduced-motion` support (disables animations and particles)
-- Game state never depends on color alone
-- Semantic HTML with ARIA labels on interactive elements
-- Auto-focus on primary action buttons in overlay screens
-
-## 📄 Asset Credits
-
-See [ASSETS.md](ASSETS.md).
-
-## 📜 License
-
-MIT
-
-## ⚠️ Disclaimer
-
-This is an original, independent project inspired by the general mechanics
-of classic 1980s platform games. It is not affiliated with, endorsed by,
-or derived from the source code or assets of the original 1988 "Dangerous Dave."
-All code, artwork, audio, levels, and branding are original creations.
+This is an original game, written from scratch. It borrows the *shape* of a much-loved 1988
+platformer — run, jump, collect, find the key, reach the door — as homage. It contains none of
+that game's code, art, sound, levels or data, and is not affiliated with or endorsed by its
+rights holders.
