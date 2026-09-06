@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { PHYSICS } from '../src/game/core/constants';
 
 /**
  * Guards the scale mode at the source level.
@@ -31,5 +32,19 @@ describe('game scale configuration', () => {
   it('renders at the fixed design resolution the levels were validated against', () => {
     expect(source).toMatch(/width:\s*SCREEN\.WIDTH/);
     expect(source).toMatch(/height:\s*SCREEN\.HEIGHT/);
+  });
+
+  it('caps the engine frame delta at the same bound the game logic uses', () => {
+    // PlayScene clamps its own delta to PHYSICS.MAX_DELTA_MS, but that clamp never reaches
+    // Arcade Physics, which steps on the loop's delta. Without an engine-level cap, a low
+    // frame rate makes each physics step move the player further than separation can resolve:
+    // measured at ~7fps the player lands on a platform and then sinks straight through it,
+    // falls out of the world and loses a life having done nothing wrong.
+    //
+    // fps.min caps the delta at 1000/min, so this ties the engine bound to the declared one.
+    const match = source.match(/min:\s*(\d+)/);
+    expect(match, 'GameConfig must declare fps.min').not.toBeNull();
+    const cappedDeltaMs = 1000 / Number(match![1]);
+    expect(cappedDeltaMs).toBeLessThanOrEqual(PHYSICS.MAX_DELTA_MS);
   });
 });

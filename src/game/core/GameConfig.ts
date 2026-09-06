@@ -13,6 +13,25 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     width: SCREEN.WIDTH,
     height: SCREEN.HEIGHT,
     backgroundColor: '#101018',
+    /**
+     * Caps the frame delta the whole engine sees — Arcade Physics included.
+     *
+     * PlayScene already clamps its own delta to PHYSICS.MAX_DELTA_MS, but that clamp is local:
+     * the physics world steps on the loop's delta, so it never saw it. Uncapped, a sustained
+     * low frame rate makes each physics step advance the player further than Arcade's
+     * separation can resolve — measured at ~7fps, the player lands on a platform, sinks
+     * through it over the next few frames, falls out of the world and loses a life without
+     * having touched anything.
+     *
+     * `min: 20` bounds the delta at 1000/20 = 50ms, matching MAX_DELTA_MS. Below that frame
+     * rate the game runs in slow motion, which is the right trade: a slow game is playable,
+     * a game that drops you through the floor is not.
+     */
+    fps: {
+      target: 60,
+      min: 20,
+      smoothStep: true,
+    },
     physics: {
       default: 'arcade',
       arcade: {
