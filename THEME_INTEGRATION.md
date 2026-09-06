@@ -224,6 +224,40 @@ from the drawing (18% at the sides, 30% off the top) so a graze doesn't kill. Fl
 overhang the rectangle would look dangerous in places that are actually safe — which reads as a
 bug to the player even though collision is correct.
 
+### The between-levels corridor (`LevelTransitionScene`)
+
+A shared file: **logic owns the lifecycle, you own everything you can see.**
+
+Restyle freely — background, brick art, typography, character animation, VFX, a progress
+indicator, audio cues. `init()` hands you everything you need, so the scene never has to derive
+progression itself:
+
+```ts
+{ levelId, title, subtitle, isVictory,
+  levelNumber, totalLevels,        // e.g. 3 of 10 — for a progress indicator
+  score, gemsCollected, gemsTotal, timeSeconds }
+```
+
+Textures to author (placeholders exist for each, replaced by defining the key in
+`PreloadScene`): `transition_brick` / `classic__transition_brick`, plus any new keys you add.
+The scene already resolves art through the normal cascade, so it inherits the active visual
+mode and the selected character with no mode-specific logic.
+
+⚠️ **Three things must survive a redesign:**
+
+1. **`finish()` must still be reachable from every path and run exactly once.** Animation
+   completing, the player skipping, and the failsafe timer all funnel through it. If a new tween
+   becomes the thing that ends the scene, its `onComplete` must call `finish()` — otherwise the
+   game wedges in the interstitial with no way out.
+2. **Keep the skip.** Any key or pointer press must abort straight to the next screen. A player
+   replaying a level for the tenth time should never be held in a cutscene.
+3. **Keep the failsafe timer.** It is the backstop for a missing texture, an interrupted tween
+   or a backgrounded tab. Don't remove it because "the animation always finishes" — that is
+   exactly the assumption it exists to survive.
+
+A note on audio: please don't reuse `playSfx('jump')` for a text pulse. Reusing a movement cue
+for UI muddles what a sound *means* — add a dedicated name to `SFX_PROFILE` instead.
+
 ### Rendering a character preview in UI
 
 For the roster showcase, ask logic for the image instead of reaching into Phaser or

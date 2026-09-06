@@ -19,7 +19,7 @@ import { getVisualMode, setVisualMode, type VisualMode } from './game/core/visua
 import { setSelectedCharacter } from './game/characters/selection';
 import { registerPreviewTextureSource } from './game/characters/preview';
 import { computeRating } from './utils/scoring';
-import { completionMessage } from './utils/levelProgress';
+import { completionMessage, levelNumber } from './utils/levelProgress';
 import { audioSystem } from './game/core/audio';
 import { applyTheme, applyReducedMotion, prefersReducedMotion } from './ui/theme';
 
@@ -310,7 +310,18 @@ gameEvents.on('level:complete', ({ levelId, score, timeSeconds, collected, total
   // skipped or interrupted interstitial can never cost the player their completed level.
   const message = completionMessage(levelId);
   game.scene.pause('Play');
-  game.scene.start('LevelTransition', { levelId, title: message.title, subtitle: message.subtitle, isVictory: message.isVictory });
+  game.scene.start('LevelTransition', {
+    levelId,
+    title: message.title,
+    subtitle: message.subtitle,
+    isVictory: message.isVictory,
+    levelNumber: levelNumber(levelId),
+    totalLevels: LEVEL_ORDER.length,
+    score,
+    gemsCollected: collected,
+    gemsTotal: total,
+    timeSeconds,
+  });
 
   cancelPendingTransition = gameEvents.once('transition:finished', () => {
     cancelPendingTransition = null;

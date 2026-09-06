@@ -14,6 +14,17 @@ export interface LevelTransitionData {
   /** e.g. "ONLY 9 MORE TO GO." */
   subtitle: string;
   isVictory: boolean;
+  /**
+   * Where this level sits in the campaign, for a progress indicator. Supplied rather than
+   * recomputed so the interstitial never derives progression itself.
+   */
+  levelNumber: number;
+  totalLevels: number;
+  /** Run stats, if the presentation wants to show them inside the corridor. */
+  score: number;
+  gemsCollected: number;
+  gemsTotal: number;
+  timeSeconds: number;
 }
 
 /** Beat lengths. Kept tight: this sits between the player and their next level. */
