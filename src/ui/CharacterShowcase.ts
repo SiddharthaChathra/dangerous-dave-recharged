@@ -4,11 +4,18 @@
  * Draws the selected character's Phaser texture at 4× scale with ambient glow, ground shadow,
  * subtle floating motion, and a slow horizontal oscillation that simulates a turntable.
  *
+ * Listens for visual-mode changes so the showcase always reflects the active presentation
+ * mode — switching between classic and modern art in real time.
+ *
  * Supports horizontal drag/scroll to rotate the character manually.
  *
  * The rAF loop is cleaned up on destroy() — the roster opens and closes repeatedly,
  * so a leaked loop drawing to a detached canvas would quietly cost frames.
  */
+
+import { gameEvents } from '../game/core/EventBus';
+import { getCharacterPreviewImage } from '../game/characters/preview';
+import { getVisualMode } from '../game/core/visualMode';
 
 /** Per-character visual config for the showcase. */
 export interface ShowcaseCharacterConfig {
@@ -62,12 +69,22 @@ interface Particle {
   hue: number;
 }
 
+/** Orbiting energy node for the 3D holographic ring effect. */
+interface OrbitNode {
+  angle: number;
+  speed: number;
+  radius: number;
+  size: number;
+  hue: number;
+}
+
 export class CharacterShowcase {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D | null;
   private rafId: number | null = null;
   private currentConfig: ShowcaseCharacterConfig | null = null;
-  private spriteImage: HTMLCanvasElement | HTMLImageElement | null = null;
+  private currentCharacterId: string | null = null;
+  private spriteImage: CanvasImageSource | null = null;
 
   // Animation state
   private time = 0;
@@ -83,11 +100,17 @@ export class CharacterShowcase {
   // Particles
   private particles: Particle[] = [];
 
+  // Orbiting energy nodes (3D ring effect)
+  private orbitNodes: OrbitNode[] = [];
+
   // Bound handlers for cleanup
   private boundOnPointerDown: (e: PointerEvent) => void;
   private boundOnPointerMove: (e: PointerEvent) => void;
   private boundOnPointerUp: (e: PointerEvent) => void;
   private boundOnWheel: (e: WheelEvent) => void;
+
+  // Event bus unsubscribers
+  private unsubscribers: (() => void)[] = [];
 
   constructor() {
     this.canvas = document.createElement('canvas');
@@ -108,6 +131,11 @@ export class CharacterShowcase {
 
     this.canvas.style.cursor = 'grab';
     this.canvas.style.touchAction = 'none'; // prevent scroll on touch
+
+    // Listen for visual mode changes to swap the displayed sprite in real time
+    this.unsubscribers.push(
+      gameEvents.on('visual-mode:changed', () => this.refreshSprite()),
+    );
   }
 
   getElement(): HTMLCanvasElement {
@@ -115,25 +143,11 @@ export class CharacterShowcase {
   }
 
   /**
-   * Set the character to display. Extracts the sprite texture from Phaser's texture manager.
-   * Pass the Phaser game instance to access textures.
+   * Set the character to display. Uses the preview system which already handles
+   * visual mode resolution and fallback cascading.
    */
-  setCharacter(characterId: string, phaserGame: Phaser.Game): void {
+  setCharacter(characterId: string, _phaserGame?: Phaser.Game): void {
     const config = SHOWCASE_CONFIGS[characterId] ?? SHOWCASE_CONFIGS['dave'];
-    const textureKey = `${config.texturePrefix}_idle`;
-
-    // Extract the texture canvas from Phaser
-    const tex = phaserGame.textures.get(textureKey);
-    if (tex && tex.key !== '__MISSING') {
-      const source = tex.getSourceImage();
-      this.spriteImage = source as HTMLCanvasElement | HTMLImageElement;
-    } else {
-      // Fallback to Dave
-      const fallback = phaserGame.textures.get('player_idle');
-      if (fallback && fallback.key !== '__MISSING') {
-        this.spriteImage = fallback.getSourceImage() as HTMLCanvasElement | HTMLImageElement;
-      }
-    }
 
     // Trigger transition
     if (this.currentConfig) {
@@ -146,13 +160,44 @@ export class CharacterShowcase {
     }
 
     this.currentConfig = config;
+    this.currentCharacterId = characterId;
     this.particles = [];
     this.autoRotation = 0;
+
+    // Initialise orbit nodes for the 3D ring effect
+    this.initOrbitNodes(config.accentHue);
+
+    // Resolve the sprite through the unified preview path
+    this.refreshSprite();
 
     // Start the render loop if not already running
     if (this.rafId === null) {
       this.lastFrameTime = performance.now();
       this.loop();
+    }
+  }
+
+  /** Re-reads the sprite image from the preview system (handles mode changes). */
+  private refreshSprite(): void {
+    if (!this.currentCharacterId) return;
+    const image = getCharacterPreviewImage(this.currentCharacterId, 'idle', getVisualMode());
+    if (image) {
+      this.spriteImage = image;
+    }
+  }
+
+  /** Create orbiting energy nodes that form a 3D ring around the character. */
+  private initOrbitNodes(accentHue: number): void {
+    this.orbitNodes = [];
+    const nodeCount = 8;
+    for (let i = 0; i < nodeCount; i++) {
+      this.orbitNodes.push({
+        angle: (Math.PI * 2 * i) / nodeCount,
+        speed: 0.6 + Math.random() * 0.4,
+        radius: 70 + Math.random() * 20,
+        size: 2 + Math.random() * 3,
+        hue: accentHue + (Math.random() - 0.5) * 40,
+      });
     }
   }
 
@@ -187,8 +232,13 @@ export class CharacterShowcase {
       }
     }
 
+    // Update orbit nodes
+    for (const node of this.orbitNodes) {
+      node.angle += dt * node.speed;
+    }
+
     // Spawn particles occasionally
-    if (this.currentConfig && Math.random() < dt * 3) {
+    if (this.currentConfig && Math.random() < dt * 4) {
       this.particles.push({
         x: this.canvas.width / 2 + (Math.random() - 0.5) * 120,
         y: this.canvas.height * 0.75 + Math.random() * 30,
@@ -227,9 +277,7 @@ export class CharacterShowcase {
     const config = this.currentConfig;
 
     // Eased transition: smooth cubic
-    const t = this.transitionDirection === 'in'
-      ? this.easeOutCubic(this.transitionProgress)
-      : this.easeOutCubic(this.transitionProgress);
+    const t = this.easeOutCubic(this.transitionProgress);
 
     const alpha = t;
     const scaleTransition = 0.8 + 0.2 * t;
@@ -246,14 +294,22 @@ export class CharacterShowcase {
 
     // Character scale
     const baseScale = 4;
-    const sw = this.spriteImage.width * baseScale * Math.abs(perspectiveX) * scaleTransition;
-    const sh = this.spriteImage.height * baseScale * scaleTransition;
+    const sw = (this.spriteImage as HTMLCanvasElement | HTMLImageElement).width * baseScale * Math.abs(perspectiveX) * scaleTransition;
+    const sh = (this.spriteImage as HTMLCanvasElement | HTMLImageElement).height * baseScale * scaleTransition;
 
     const cx = cw / 2;
     const cy = ch * 0.45 + floatY;
 
     ctx.save();
     ctx.globalAlpha = alpha;
+
+    // --- HOLOGRAPHIC PLATFORM / PEDESTAL ---
+    const platY = ch * 0.82;
+    this.drawHoloPedestal(ctx, cx, platY, scaleTransition, config);
+
+    // --- 3D ORBIT RING (behind character) ---
+    // Draw nodes that are "behind" the character (z < 0)
+    this.drawOrbitNodes(ctx, cx, cy, alpha, config, 'behind');
 
     // Ground shadow (ellipse)
     const shadowY = ch * 0.82;
@@ -276,6 +332,11 @@ export class CharacterShowcase {
     ctx.arc(cx, cy, 140, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+
+    // --- SCAN LINES (classic mode aesthetic) ---
+    if (getVisualMode() === 'classic') {
+      this.drawScanLines(ctx, cx, cy, sh, alpha);
+    }
 
     // Particles (behind character)
     for (const p of this.particles) {
@@ -312,8 +373,151 @@ export class CharacterShowcase {
       -sw / 2, -sh / 2,
       sw, sh
     );
+
+    // Third pass: coloured edge-light for "3D lighting" effect
+    ctx.globalAlpha = 0.08;
+    ctx.shadowColor = config.glowColor.replace('0.35', '0.8');
+    ctx.shadowBlur = 60;
+    ctx.shadowOffsetX = facingRight ? -6 : 6;
+    ctx.drawImage(
+      this.spriteImage,
+      -sw / 2, -sh / 2,
+      sw, sh
+    );
     ctx.restore();
 
+    // --- 3D ORBIT RING (in front of character) ---
+    this.drawOrbitNodes(ctx, cx, cy, alpha, config, 'front');
+
+    // --- HEX GRID OVERLAY (subtle) ---
+    this.drawHexGridOverlay(ctx, cx, cy, alpha);
+
+    ctx.restore();
+  }
+
+  /** Draws a holographic pedestal ellipse beneath the character. */
+  private drawHoloPedestal(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    scale: number,
+    config: ShowcaseCharacterConfig,
+  ): void {
+    // Pulsing outer ring
+    const pulse = 0.8 + Math.sin(this.time * 2) * 0.2;
+
+    // Outer glow ellipse
+    ctx.save();
+    ctx.globalAlpha = 0.15 * pulse;
+    ctx.strokeStyle = config.glowColor.replace('0.35', '1');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 80 * scale, 16 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Inner bright ellipse
+    ctx.save();
+    ctx.globalAlpha = 0.25 * pulse;
+    ctx.strokeStyle = config.glowColor.replace('0.35', '1');
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 60 * scale, 12 * scale, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // Filled translucent base
+    ctx.save();
+    ctx.globalAlpha = 0.05;
+    ctx.fillStyle = config.glowColor.replace('0.35', '1');
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 80 * scale, 16 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /** Draws the orbiting energy nodes — either the ones behind or in front of the character. */
+  private drawOrbitNodes(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    alpha: number,
+    _config: ShowcaseCharacterConfig,
+    layer: 'behind' | 'front',
+  ): void {
+    for (const node of this.orbitNodes) {
+      const nx = cx + Math.cos(node.angle) * node.radius;
+      const nz = Math.sin(node.angle); // z-depth: negative = behind, positive = in front
+      const ny = cy + nz * 30; // vertical offset to simulate orbit tilt
+
+      const isBehind = nz < 0;
+      if ((layer === 'behind' && !isBehind) || (layer === 'front' && isBehind)) continue;
+
+      const depthAlpha = layer === 'behind' ? 0.3 : 0.7;
+      const depthSize = layer === 'behind' ? 0.6 : 1.0;
+
+      ctx.save();
+      ctx.globalAlpha = alpha * depthAlpha;
+      ctx.fillStyle = `hsla(${node.hue}, 80%, 65%, 1)`;
+      ctx.shadowColor = `hsla(${node.hue}, 90%, 60%, 0.8)`;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(nx, ny, node.size * depthSize, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  /** Draws a subtle hexagonal grid overlay for a sci-fi holographic feel. */
+  private drawHexGridOverlay(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    alpha: number,
+  ): void {
+    const hexSize = 20;
+    const rows = 4;
+    const cols = 5;
+
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.04;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 0.5;
+
+    for (let r = -rows; r <= rows; r++) {
+      for (let c = -cols; c <= cols; c++) {
+        const hx = cx + c * hexSize * 1.75 + (r % 2 === 0 ? 0 : hexSize * 0.875);
+        const hy = cy + r * hexSize * 1.5;
+        const dist = Math.sqrt((hx - cx) ** 2 + (hy - cy) ** 2);
+        if (dist > 120) continue; // Only draw near the character
+
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const angle = (Math.PI / 3) * i - Math.PI / 6;
+          const px = hx + hexSize * 0.6 * Math.cos(angle);
+          const py = hy + hexSize * 0.6 * Math.sin(angle);
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  /** Draws retro scan-line bars for classic mode. */
+  private drawScanLines(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    spriteHeight: number,
+    alpha: number,
+  ): void {
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.06;
+    ctx.fillStyle = '#000000';
+    const top = cy - spriteHeight / 2 - 20;
+    const bottom = cy + spriteHeight / 2 + 20;
+    for (let y = top; y < bottom; y += 4) {
+      ctx.fillRect(cx - 80, y, 160, 1);
+    }
     ctx.restore();
   }
 
@@ -375,8 +579,14 @@ export class CharacterShowcase {
     window.removeEventListener('pointermove', this.boundOnPointerMove);
     window.removeEventListener('pointerup', this.boundOnPointerUp);
     this.canvas.removeEventListener('wheel', this.boundOnWheel);
+
+    for (const unsub of this.unsubscribers) unsub();
+    this.unsubscribers = [];
+
     this.particles = [];
+    this.orbitNodes = [];
     this.spriteImage = null;
     this.currentConfig = null;
+    this.currentCharacterId = null;
   }
 }

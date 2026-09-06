@@ -103,10 +103,10 @@ export class CharacterSelectScreen {
   }
 
   private updateShowcase(characterId: string): void {
-    // Update the showcase canvas
-    const phaserGame = (window as unknown as { __ddrDebugGame: Phaser.Game }).__ddrDebugGame;
-    if (this.showcase && phaserGame) {
-      this.showcase.setCharacter(characterId, phaserGame);
+    // Update the showcase canvas — the showcase resolves textures via the preview system
+    // internally, which handles visual mode fallback automatically.
+    if (this.showcase) {
+      this.showcase.setCharacter(characterId);
     }
 
     // Update the info panel with slide animation
